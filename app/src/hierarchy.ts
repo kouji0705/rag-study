@@ -21,7 +21,12 @@ export const MANUAL_GROUPS: readonly ManualGroup[] = [
   {
     category: "請求",
     group: "プラン",
-    headings: ["Standardプランの月額", "プランの種類"],
+    headings: [
+      "Standardプランの月額",
+      "Proプランの月額",
+      "SSO",
+      "プランの種類",
+    ],
   },
   {
     category: "請求",

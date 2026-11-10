@@ -5,6 +5,7 @@ import {
   runEmbed,
   runExclude,
   runFilter,
+  runHop,
   runIndex,
   runRerank,
   runRetry,
@@ -59,6 +60,10 @@ async function main(): Promise<number> {
     await runRetry();
     return 0;
   }
+  if (command === "hop") {
+    await runHop();
+    return 0;
+  }
   if (command === "descend") {
     await runDescend();
     return 0;
@@ -72,7 +77,7 @@ async function main(): Promise<number> {
     return 0;
   }
   console.error(
-    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry, verify, descend",
+    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry, verify, descend, hop",
   );
   return 1;
 }
