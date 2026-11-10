@@ -27,10 +27,16 @@ import {
   HIERARCHY_CRITERIA,
   HIERARCHY_INSTRUCTIONS,
   HIERARCHY_MIN_SCORE,
+  HOP_CRITERIA,
+  HOP_INSTRUCTIONS,
+  HOP_REWRITE_INSTRUCTION,
+  INCOMPLETE_INSTRUCTION,
   JEV_MODEL,
   MAX_ADDITIONAL_SEARCHES,
+  MAX_HOPS,
   MORE_SEARCH_CRITERIA,
   MORE_SEARCH_INSTRUCTIONS,
+  MULTI_QUESTION,
   PAYMENT_QUESTION,
   PLAN_EXIT_QUESTION,
   PRORATION_QUESTION,
@@ -349,6 +355,89 @@ async function compareRetry(question: string): Promise<void> {
   field("document_count", documents.length);
   printHits(documents);
   await printAnswer("retry", question, documents);
+}
+
+export async function runHop(): Promise<void> {
+  for (const question of [MULTI_QUESTION, DELETE_QUESTION]) {
+    await hopQuestion(question);
+  }
+}
+
+async function hopQuestion(question: string): Promise<void> {
+  field("question", question);
+  field("case", "naive");
+  const naive = await searchHits(question, 3);
+  field("search_count", 1);
+  field("search_ms", naive.ms);
+  field("embedding_tokens", naive.tokens);
+  printHits(naive.hits);
+  await printAnswer("naive", question, naive.hits);
+
+  field("case", "hop");
+  const first = await searchHits(question, 3);
+  field("hop", 1);
+  field("search_ms", first.ms);
+  field("embedding_tokens", first.tokens);
+  printHits(first.hits);
+  let documents = first.hits;
+  let searches = 1;
+  let choice = "";
+  while (true) {
+    const started = Date.now();
+    const decision = await chooseOption(
+      passageState(question, documents),
+      HOP_INSTRUCTIONS,
+      {
+        ...HOP_CRITERIA,
+      },
+    );
+    choice = decision.choice;
+    if (!(choice in HOP_CRITERIA)) {
+      throw new Error(`unknown hop choice: ${choice}`);
+    }
+    field(`hop${searches}_choice`, choice);
+    field(`hop${searches}_confidence`, decimal(decision.confidence));
+    printProbabilities(decision.probabilities, `hop${searches}_probability`);
+    field("requested_jev_model", JEV_MODEL);
+    field("response_jev_model", decision.model);
+    field(`hop${searches}_jev_input_tokens`, decision.inputTokens);
+    field(`hop${searches}_jev_ms`, Date.now() - started);
+    if (choice === "done" || searches >= MAX_HOPS) {
+      break;
+    }
+    const gap = HOP_CRITERIA[choice as keyof typeof HOP_CRITERIA];
+    const rewriteStarted = Date.now();
+    const rewritten = await completeAnswer(
+      `${passageState(question, documents)}\n\n不足:\n${gap}`,
+      HOP_REWRITE_INSTRUCTION,
+    );
+    const nextQuery = rewritten.text.split("\n")[0]?.trim() ?? "";
+    if (nextQuery.length === 0) {
+      throw new Error("rewritten query was empty");
+    }
+    field("rewritten_query", nextQuery);
+    field("rewrite_input_tokens", rewritten.inputTokens);
+    field("rewrite_output_tokens", rewritten.outputTokens);
+    field("rewrite_ms", Date.now() - rewriteStarted);
+    const again = await searchHits(nextQuery, 3);
+    field("additional_search_ms", again.ms);
+    field("additional_embedding_tokens", again.tokens);
+    field("case", "additional");
+    printHits(again.hits);
+    documents = mergeHits(documents, again.hits);
+    searches += 1;
+    field("hop", searches);
+    printHits(documents);
+  }
+  field("search_count", searches);
+  field("document_count", documents.length);
+  field("final_choice", choice);
+  await printAnswer(
+    "hop",
+    question,
+    documents,
+    choice === "done" ? ANSWER_INSTRUCTION : INCOMPLETE_INSTRUCTION,
+  );
 }
 
 export async function runDescend(): Promise<void> {

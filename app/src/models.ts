@@ -112,3 +112,23 @@ export const HIERARCHY_CRITERIA = [
   "答えの一部を裏付ける",
   "この質問への答えを直接判断できる",
 ] as const;
+
+export const MULTI_QUESTION =
+  "SSOが使えるプランを月の途中で退会した場合、当月の請求額とデータ削除までの日数は？";
+
+export const MAX_HOPS = 3;
+
+export const HOP_INSTRUCTIONS = "この質問に答えるために、次に探す情報はどれか";
+
+export const HOP_CRITERIA = {
+  plan: "使えるプランや機能の規定が、まだ足りない",
+  billing: "料金や請求の規定が、まだ足りない",
+  deletion: "データ削除の規定が、まだ足りない",
+  done: "質問に必要な規定は、渡された文書に揃っている",
+} as const;
+
+export const HOP_REWRITE_INSTRUCTION =
+  "不足している項目を探す検索文を1つだけ書いてください。検索文以外は書かないでください。";
+
+export const INCOMPLETE_INSTRUCTION =
+  "渡された文書だけを根拠に答えてください。文書から確認できない項目は、確認できないと書いて、推測しないでください。";
