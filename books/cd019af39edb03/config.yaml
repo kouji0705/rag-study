@@ -12,3 +12,4 @@ chapters:
   - 05-vector-db
   - 06-naive-rag
   - 07-metadata-filter
+  - 08-rerank
