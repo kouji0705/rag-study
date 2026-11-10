@@ -1058,6 +1058,7 @@ async function rankByUsefulness(
     field("heading", hit.heading);
     field("distance", decimal(hit.distance));
     field("score", decimal(result.score));
+    field("jev_usefulness", JSON.stringify(result.usefulness));
   }
   field("requested_jev_model", JEV_MODEL);
   field("response_jev_model", model);
