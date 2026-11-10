@@ -1,6 +1,7 @@
 import { runCheck } from "./check.ts";
 import {
   runAnswer,
+  runCompare,
   runDescend,
   runEmbed,
   runExclude,
@@ -61,6 +62,10 @@ async function main(): Promise<number> {
     await runRetry();
     return 0;
   }
+  if (command === "compare") {
+    await runCompare();
+    return 0;
+  }
   if (command === "relate") {
     await runRelate();
     return 0;
@@ -82,7 +87,7 @@ async function main(): Promise<number> {
     return 0;
   }
   console.error(
-    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry, verify, descend, hop, relate",
+    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry, verify, descend, hop, relate, compare",
   );
   return 1;
 }

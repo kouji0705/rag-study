@@ -8,9 +8,12 @@ import {
   upsertChunks,
 } from "./chroma.ts";
 import {
+  COMPARE_HOPS,
+  COMPARE_STARTS,
   GRAPH_DEMO_HOPS,
   GRAPH_DEMO_QUESTION,
   GRAPH_DEMO_START,
+  nodeNames,
   walkRelations,
 } from "./graph.ts";
 import { placeChunks } from "./hierarchy.ts";
@@ -361,6 +364,94 @@ async function compareRetry(question: string): Promise<void> {
   field("document_count", documents.length);
   printHits(documents);
   await printAnswer("retry", question, documents);
+}
+
+export async function runCompare(): Promise<void> {
+  for (const question of [PRORATION_QUESTION, MULTI_QUESTION]) {
+    await compareQuestion(question);
+  }
+}
+
+async function compareQuestion(question: string): Promise<void> {
+  field("question", question);
+  field("case", "vector");
+  const searched = await searchHits(question, 3);
+  field("search_ms", searched.ms);
+  field("embedding_tokens", searched.tokens);
+  field("document_count", searched.hits.length);
+  printHits(searched.hits);
+  await printAnswer("vector", question, searched.hits);
+
+  field("case", "graph");
+  const names = nodeNames();
+  const started = Date.now();
+  const embedded = await embedTexts([question, ...names]);
+  const query = embedded.vectors[0];
+  if (query === undefined) {
+    throw new Error("query embedding missing");
+  }
+  const ranked = names.map((name, index) => {
+    const vector = embedded.vectors[index + 1];
+    if (vector === undefined) {
+      throw new Error(`node embedding missing: ${name}`);
+    }
+    return { name, similarity: cosineSimilarity(query, vector) };
+  });
+  ranked.sort((left, right) => right.similarity - left.similarity);
+  field("node_embedding_tokens", embedded.tokens);
+  field("node_embedding_ms", Date.now() - started);
+  const starts = ranked.slice(0, COMPARE_STARTS);
+  for (const start of starts) {
+    field("start", start.name);
+    field("similarity", decimal(start.similarity));
+  }
+  field("hops", COMPARE_HOPS);
+  const edges = walkRelations(
+    starts.map((start) => start.name),
+    COMPARE_HOPS,
+  );
+  field("relation_count", edges.length);
+  for (const edge of edges) {
+    field("from", edge.from);
+    field("relation", edge.relation);
+    field("to", edge.to);
+    field("source_id", edge.sourceId);
+  }
+  const chunks = await loadChunks();
+  const sources: Chunk[] = [];
+  for (const edge of edges) {
+    const chunk = chunks.find((item) => item.id === edge.sourceId);
+    if (chunk === undefined) {
+      throw new Error(`relation source missing: ${edge.sourceId}`);
+    }
+    if (!sources.some((item) => item.id === chunk.id)) {
+      sources.push(chunk);
+    }
+  }
+  field("document_count", sources.length);
+  for (const chunk of sources) {
+    field("heading", chunk.heading);
+  }
+  const relationText = edges
+    .map((edge) => `${edge.from} —${edge.relation}→ ${edge.to}`)
+    .join("\n");
+  const passages = sources
+    .map((chunk) => `見出し: ${chunk.heading}\n${chunk.body}`)
+    .join("\n\n");
+  const answerStarted = Date.now();
+  const answer = await completeAnswer(
+    `質問:\n${question}\n\n関係:\n${relationText}\n\n文書:\n${passages}`,
+    ANSWER_INSTRUCTION,
+  );
+  field("answer_label", "graph");
+  field("requested_answer_model", ANSWER_MODEL);
+  field("response_answer_model", answer.model);
+  field("answer_input_tokens", answer.inputTokens);
+  field("answer_output_tokens", answer.outputTokens);
+  field("answer_ms", Date.now() - answerStarted);
+  console.log("answer:");
+  console.log(answer.text);
+  console.log("---");
 }
 
 export async function runRelate(): Promise<void> {

@@ -59,6 +59,21 @@ export const RELATIONS: readonly Relation[] = [
 export const GRAPH_DEMO_QUESTION = "SSOが使えるプランの月額はいくらですか？";
 export const GRAPH_DEMO_START = "SSO";
 export const GRAPH_DEMO_HOPS = 2;
+export const COMPARE_STARTS = 2;
+export const COMPARE_HOPS = 2;
+
+export function nodeNames(): string[] {
+  const names: string[] = [];
+  for (const edge of RELATIONS) {
+    if (!names.includes(edge.from)) {
+      names.push(edge.from);
+    }
+    if (!names.includes(edge.to)) {
+      names.push(edge.to);
+    }
+  }
+  return names;
+}
 
 export function walkRelations(
   starts: readonly string[],
