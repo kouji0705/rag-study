@@ -10,6 +10,7 @@ import {
   runRoute,
   runSearch,
   runSplit,
+  runVerify,
 } from "./commands.ts";
 
 async function main(): Promise<number> {
@@ -57,12 +58,16 @@ async function main(): Promise<number> {
     await runRetry();
     return 0;
   }
+  if (command === "verify") {
+    await runVerify();
+    return 0;
+  }
   if (command === "rerank") {
     await runRerank();
     return 0;
   }
   console.error(
-    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry",
+    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry, verify",
   );
   return 1;
 }

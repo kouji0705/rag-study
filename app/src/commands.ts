@@ -34,11 +34,15 @@ import {
   RERANK_INSTRUCTIONS,
   RETRIEVAL_CRITERIA,
   RETRIEVAL_INSTRUCTIONS,
+  REVISE_INSTRUCTION,
   REWRITE_INSTRUCTION,
   STRATEGY_CRITERIA,
   STRATEGY_INSTRUCTIONS,
+  SUPPORT_CRITERIA,
+  SUPPORT_INSTRUCTIONS,
   TARGET_HEADING,
   TERM_QUESTION,
+  UNCONFIRMED_ANSWER,
 } from "./models.ts";
 import { completeAnswer, cosineSimilarity, embedTexts } from "./openrouter.ts";
 
@@ -343,6 +347,120 @@ async function compareRetry(question: string): Promise<void> {
   await printAnswer("retry", question, documents);
 }
 
+export async function runVerify(): Promise<void> {
+  for (const question of [EXTEND_QUESTION, DELETE_QUESTION]) {
+    await verifyQuestion(question);
+  }
+}
+
+async function verifyQuestion(question: string): Promise<void> {
+  field("question", question);
+  const searched = await searchHits(question, 3);
+  field("search_count", 1);
+  field("search_ms", searched.ms);
+  field("embedding_tokens", searched.tokens);
+  printHits(searched.hits);
+  const initial = await generateAnswer(
+    "initial",
+    question,
+    searched.hits,
+    ANSWER_INSTRUCTION,
+  );
+  const first = await judgeSupport(
+    question,
+    searched.hits,
+    initial.text,
+    "first",
+  );
+  if (first.choice === "supported") {
+    field("revision", "skipped");
+    field("final_source", "initial");
+    console.log("final_answer:");
+    console.log(initial.text);
+    console.log("---");
+    return;
+  }
+  if (first.choice !== "not_supported" && first.choice !== "contradicted") {
+    throw new Error(`unknown support choice: ${first.choice}`);
+  }
+  const revised = await generateAnswer(
+    "revised",
+    question,
+    searched.hits,
+    REVISE_INSTRUCTION,
+    initial.text,
+  );
+  const second = await judgeSupport(
+    question,
+    searched.hits,
+    revised.text,
+    "second",
+  );
+  if (
+    second.choice !== "supported" &&
+    second.choice !== "not_supported" &&
+    second.choice !== "contradicted"
+  ) {
+    throw new Error(`unknown support choice: ${second.choice}`);
+  }
+  const adopted = second.choice === "supported";
+  field("final_source", adopted ? "revised" : "unconfirmed");
+  console.log("final_answer:");
+  console.log(adopted ? revised.text : UNCONFIRMED_ANSWER);
+  console.log("---");
+}
+
+async function judgeSupport(
+  question: string,
+  hits: Hit[],
+  answer: string,
+  label: string,
+): Promise<{ choice: string }> {
+  const started = Date.now();
+  const decision = await chooseOption(
+    `${passageState(question, hits)}\n\n回答:\n${answer}`,
+    SUPPORT_INSTRUCTIONS,
+    { ...SUPPORT_CRITERIA },
+  );
+  field(`${label}_choice`, decision.choice);
+  field(`${label}_confidence`, decimal(decision.confidence));
+  printProbabilities(decision.probabilities, `${label}_probability`);
+  field(`${label}_requested_jev_model`, JEV_MODEL);
+  field(`${label}_response_jev_model`, decision.model);
+  field(`${label}_jev_input_tokens`, decision.inputTokens);
+  field(`${label}_jev_ms`, Date.now() - started);
+  return decision;
+}
+
+async function generateAnswer(
+  label: string,
+  question: string,
+  hits: Hit[],
+  instruction: string,
+  previous?: string,
+): Promise<{ text: string }> {
+  const passages = hits
+    .map((hit) => `見出し: ${hit.heading}\n${hit.document}`)
+    .join("\n\n");
+  const previousText =
+    previous === undefined ? "" : `\n\n直前の回答:\n${previous}`;
+  const started = Date.now();
+  const answer = await completeAnswer(
+    `質問:\n${question}\n\n文書:\n${passages}${previousText}`,
+    instruction,
+  );
+  field("answer_label", label);
+  field("requested_answer_model", ANSWER_MODEL);
+  field("response_answer_model", answer.model);
+  field("answer_input_tokens", answer.inputTokens);
+  field("answer_output_tokens", answer.outputTokens);
+  field("answer_ms", Date.now() - started);
+  console.log("answer:");
+  console.log(answer.text);
+  console.log("---");
+  return answer;
+}
+
 export async function runRerank(): Promise<void> {
   const collection = await getOrCreateCollection();
   const embedded = await embedTexts([PRORATION_QUESTION]);
@@ -535,9 +653,12 @@ function printHits(hits: Hit[]): void {
   }
 }
 
-function printProbabilities(probabilities: Record<string, number>): void {
+function printProbabilities(
+  probabilities: Record<string, number>,
+  prefix = "probability",
+): void {
   for (const [key, value] of Object.entries(probabilities)) {
-    field(`probability_${key}`, decimal(value));
+    field(`${prefix}_${key}`, decimal(value));
   }
 }
 

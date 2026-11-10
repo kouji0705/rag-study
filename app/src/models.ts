@@ -87,3 +87,17 @@ export const RETRIEVAL_CRITERIA = {
   Ambiguous: "関連する情報はあるが、根拠として十分か判断しにくい",
   Incorrect: "話題は近いが、答えの規定が入っていない",
 } as const;
+
+export const SUPPORT_INSTRUCTIONS =
+  "生成した回答は、渡された文書の記載に基づいているか";
+
+export const SUPPORT_CRITERIA = {
+  supported: "回答の主張が、渡された文書の記載で裏付けられる",
+  not_supported: "回答の主張を、渡された文書から裏付けられない",
+  contradicted: "回答の主張が、渡された文書の記載と食い違う",
+} as const;
+
+export const REVISE_INSTRUCTION =
+  "渡された文書の記載に合うように、回答を1回だけ書き直してください。文書に無いことは書かず、確認できなければ「マニュアルからは確認できません」と書いてください。";
+
+export const UNCONFIRMED_ANSWER = "マニュアルからは確認できません";
