@@ -6,6 +6,7 @@ import {
   runFilter,
   runIndex,
   runRerank,
+  runRetry,
   runRoute,
   runSearch,
   runSplit,
@@ -52,12 +53,16 @@ async function main(): Promise<number> {
     await runRoute();
     return 0;
   }
+  if (command === "retry") {
+    await runRetry();
+    return 0;
+  }
   if (command === "rerank") {
     await runRerank();
     return 0;
   }
   console.error(
-    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route",
+    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry",
   );
   return 1;
 }

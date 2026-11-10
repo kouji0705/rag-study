@@ -14,6 +14,8 @@ export const EXTEND_QUESTION =
 export const TERM_QUESTION = "「日割り」とはどういう意味ですか？";
 export const PLAN_EXIT_QUESTION =
   "プラン変更後に退会した場合、請求とデータ削除はどうなりますか？";
+export const PAYMENT_QUESTION =
+  "クレジットカードの決済に失敗したままだと、いつタスクを編集できなくなりますか？";
 
 export const EXCLUDE_MIN_SCORE = 2;
 
@@ -76,3 +78,12 @@ export const REWRITE_INSTRUCTION =
   "足りない点を補う検索文を1つだけ書いてください。検索文以外は書かないでください。";
 
 export const MAX_ADDITIONAL_SEARCHES = 1;
+
+export const RETRIEVAL_INSTRUCTIONS =
+  "渡された文書は、この質問の根拠として足りるか";
+
+export const RETRIEVAL_CRITERIA = {
+  Correct: "必要な規定が、渡された文書に入っている",
+  Ambiguous: "関連する情報はあるが、根拠として十分か判断しにくい",
+  Incorrect: "話題は近いが、答えの規定が入っていない",
+} as const;

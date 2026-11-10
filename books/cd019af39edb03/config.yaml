@@ -15,3 +15,4 @@ chapters:
   - 08-rerank
   - 09-exclude
   - 10-route
+  - 11-retry
