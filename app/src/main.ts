@@ -6,6 +6,7 @@ import {
   runFilter,
   runIndex,
   runRerank,
+  runRoute,
   runSearch,
   runSplit,
 } from "./commands.ts";
@@ -47,12 +48,16 @@ async function main(): Promise<number> {
     await runFilter();
     return 0;
   }
+  if (command === "route") {
+    await runRoute();
+    return 0;
+  }
   if (command === "rerank") {
     await runRerank();
     return 0;
   }
   console.error(
-    "commands: check, split, embed, index, search, answer, filter, rerank, exclude",
+    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route",
   );
   return 1;
 }

@@ -1,6 +1,69 @@
 import { bearer, isRecord, postJson } from "./http.ts";
 import { JEV_MODEL, RERANK_CRITERIA, RERANK_INSTRUCTIONS } from "./models.ts";
 
+export type ChoiceResult = {
+  model: string;
+  choice: string;
+  probabilities: Record<string, number>;
+  confidence: number;
+  inputTokens: number;
+};
+
+export async function chooseOption(
+  state: string,
+  instructions: string,
+  criteria: Record<string, string>,
+): Promise<ChoiceResult> {
+  const payload = await postJson(
+    "https://api.typesafe.ai/v1/systemone",
+    {
+      model: JEV_MODEL,
+      state,
+      questions: {
+        decision: {
+          type: "choice",
+          instructions,
+          criteria,
+        },
+      },
+    },
+    bearer("JEV_API_KEY"),
+  );
+  if (
+    !isRecord(payload) ||
+    typeof payload.model !== "string" ||
+    !isRecord(payload.answers)
+  ) {
+    throw new Error("jev response was incomplete");
+  }
+  const answer = payload.answers.decision;
+  if (!isRecord(answer) || typeof answer.choice !== "string") {
+    throw new Error("jev choice missing");
+  }
+  const probabilities: Record<string, number> = {};
+  if (isRecord(answer.probabilities)) {
+    for (const [key, value] of Object.entries(answer.probabilities)) {
+      if (typeof value === "number") {
+        probabilities[key] = value;
+      }
+    }
+  }
+  const confidence =
+    typeof answer.confidence === "number" ? answer.confidence : 0;
+  const usage = payload.usage;
+  const inputTokens =
+    isRecord(usage) && typeof usage.input_tokens === "number"
+      ? usage.input_tokens
+      : 0;
+  return {
+    model: payload.model,
+    choice: answer.choice,
+    probabilities,
+    confidence,
+    inputTokens,
+  };
+}
+
 export type ScoreResult = {
   model: string;
   score: number;

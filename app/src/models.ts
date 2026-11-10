@@ -11,6 +11,9 @@ export const PRORATION_QUESTION =
   "Standardプランを月の途中で解約したら、日割りになりますか？";
 export const EXTEND_QUESTION =
   "退会後のデータ保存期間を、有料で90日間に延長できますか？";
+export const TERM_QUESTION = "「日割り」とはどういう意味ですか？";
+export const PLAN_EXIT_QUESTION =
+  "プラン変更後に退会した場合、請求とデータ削除はどうなりますか？";
 
 export const EXCLUDE_MIN_SCORE = 2;
 
@@ -48,3 +51,28 @@ export const EXTEND_SCORE_CRITERIA = [
   "保存期間について、回答の一部を裏付ける",
   "有料で90日間に延長できるかを直接判断できる",
 ] as const;
+
+export const STRATEGY_INSTRUCTIONS =
+  "この質問に答えるとき、マニュアルをどう検索するか";
+
+export const STRATEGY_CRITERIA = {
+  none: "一般的な言葉の説明で足り、サービスの規定を調べなくてよい",
+  once: "サービスの規定を、この質問のまま1回検索すればよい",
+  multi: "複数の規定にまたがるので、検索を分けた方がよい",
+} as const;
+
+export const MORE_SEARCH_INSTRUCTIONS =
+  "渡された文書だけで、この質問に答えられるか";
+
+export const MORE_SEARCH_CRITERIA = {
+  enough: "必要な規定が渡された文書に入っている",
+  more: "必要な規定がまだ足りない",
+} as const;
+
+export const GENERAL_INSTRUCTION =
+  "一般的な言葉の意味だけを説明してください。TaskFlowの料金、日数、手続きは推測しないでください。サービスの規定が必要なら、分からないと答えてください。";
+
+export const REWRITE_INSTRUCTION =
+  "足りない点を補う検索文を1つだけ書いてください。検索文以外は書かないでください。";
+
+export const MAX_ADDITIONAL_SEARCHES = 1;

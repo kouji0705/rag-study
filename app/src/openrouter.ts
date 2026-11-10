@@ -69,13 +69,16 @@ export async function embedTexts(input: string[]): Promise<EmbeddingResult> {
   };
 }
 
-export async function completeAnswer(user: string): Promise<AnswerResult> {
+export async function completeAnswer(
+  user: string,
+  instruction: string = ANSWER_INSTRUCTION,
+): Promise<AnswerResult> {
   const payload = await postJson(
     "https://openrouter.ai/api/v1/chat/completions",
     {
       model: ANSWER_MODEL,
       messages: [
-        { role: "system", content: ANSWER_INSTRUCTION },
+        { role: "system", content: instruction },
         { role: "user", content: user },
       ],
     },
