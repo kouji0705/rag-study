@@ -7,6 +7,7 @@ import {
   readDocument,
   upsertChunks,
 } from "./chroma.ts";
+import { placeChunks } from "./hierarchy.ts";
 import { decimal, field } from "./http.ts";
 import { chooseOption, scoreDocument } from "./jev.ts";
 import { type Chunk, loadChunks } from "./manual.ts";
@@ -23,6 +24,9 @@ import {
   EXTEND_SCORE_CRITERIA,
   EXTEND_SCORE_INSTRUCTIONS,
   GENERAL_INSTRUCTION,
+  HIERARCHY_CRITERIA,
+  HIERARCHY_INSTRUCTIONS,
+  HIERARCHY_MIN_SCORE,
   JEV_MODEL,
   MAX_ADDITIONAL_SEARCHES,
   MORE_SEARCH_CRITERIA,
@@ -347,6 +351,190 @@ async function compareRetry(question: string): Promise<void> {
   await printAnswer("retry", question, documents);
 }
 
+export async function runDescend(): Promise<void> {
+  for (const question of [DELETE_QUESTION, PRORATION_QUESTION]) {
+    await descendQuestion(question);
+  }
+}
+
+type ScoredName = {
+  name: string;
+  state: string;
+  score: number;
+};
+
+async function descendQuestion(question: string): Promise<void> {
+  field("question", question);
+  field("case", "naive");
+  const naive = await searchHits(question, 3);
+  field("search_count", 1);
+  field("search_ms", naive.ms);
+  field("embedding_tokens", naive.tokens);
+  printHits(naive.hits);
+  await printAnswer("naive", question, naive.hits);
+
+  field("case", "descend");
+  const placed = placeChunks(await loadChunks());
+  const categories = uniqueNames(
+    placed.map((item) => ({
+      name: item.category,
+      state: categoryState(question, item.category, placed),
+    })),
+  );
+  const scoredCategories = await scoreLevel("category", categories);
+  const keptCategories = keepLevel("category", scoredCategories);
+  const groups = uniqueNames(
+    placed
+      .filter((item) => keptCategories.has(item.category))
+      .map((item) => ({
+        name: `${item.category}/${item.group}`,
+        state: groupState(question, item.category, item.group, placed),
+      })),
+  );
+  const scoredGroups = await scoreLevel("group", groups);
+  const keptGroups = keepLevel("group", scoredGroups);
+  const documents = placed.filter((item) =>
+    keptGroups.has(`${item.category}/${item.group}`),
+  );
+  const scoredDocuments = await scoreLevel(
+    "document",
+    documents.map((item) => ({
+      name: item.chunk.heading,
+      state: `質問:\n${question}\n\n文書:\n${item.chunk.body}`,
+      chunk: item.chunk,
+    })),
+  );
+  const selected = [...scoredDocuments]
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 3);
+  field("selected_count", selected.length);
+  for (let index = 0; index < selected.length; index += 1) {
+    const item = selected[index];
+    if (item !== undefined) {
+      field("rank", index + 1);
+      field("heading", item.name);
+      field("score", decimal(item.score));
+    }
+  }
+  await printAnswer(
+    "descend",
+    question,
+    selected.map((item) => ({
+      heading: item.name,
+      document: item.chunk.body,
+    })),
+  );
+}
+
+function categoryState(
+  question: string,
+  category: string,
+  placed: ReturnType<typeof placeChunks>,
+): string {
+  const lines = groupsIn(category, placed).map((group) => {
+    const headings = placed
+      .filter((item) => item.category === category && item.group === group)
+      .map((item) => item.chunk.heading)
+      .join("、");
+    return `- ${group}: ${headings}`;
+  });
+  return `質問:\n${question}\n\nカテゴリ: ${category}\n${lines.join("\n")}`;
+}
+
+function groupState(
+  question: string,
+  category: string,
+  group: string,
+  placed: ReturnType<typeof placeChunks>,
+): string {
+  const headings = placed
+    .filter((item) => item.category === category && item.group === group)
+    .map((item) => item.chunk.heading)
+    .join("、");
+  return `質問:\n${question}\n\nカテゴリ: ${category}\nグループ: ${group}\n見出し: ${headings}`;
+}
+
+function groupsIn(
+  category: string,
+  placed: ReturnType<typeof placeChunks>,
+): string[] {
+  const names: string[] = [];
+  for (const item of placed) {
+    if (item.category === category && !names.includes(item.group)) {
+      names.push(item.group);
+    }
+  }
+  return names;
+}
+
+function uniqueNames<T extends { name: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  const unique: T[] = [];
+  for (const item of items) {
+    if (!seen.has(item.name)) {
+      seen.add(item.name);
+      unique.push(item);
+    }
+  }
+  return unique;
+}
+
+async function scoreLevel<T extends { name: string; state: string }>(
+  level: string,
+  items: T[],
+): Promise<Array<T & ScoredName>> {
+  const scored: Array<T & ScoredName> = [];
+  let tokens = 0;
+  let model = "";
+  const started = Date.now();
+  for (const item of items) {
+    const result = await scoreDocument(
+      item.state,
+      HIERARCHY_INSTRUCTIONS,
+      HIERARCHY_CRITERIA,
+    );
+    tokens += result.inputTokens;
+    model = result.model;
+    field("level", level);
+    field("name", item.name);
+    field("score", decimal(result.score));
+    scored.push({ ...item, score: result.score });
+  }
+  field("requested_jev_model", JEV_MODEL);
+  field("response_jev_model", model);
+  field(`${level}_jev_input_tokens`, tokens);
+  field(`${level}_jev_ms`, Date.now() - started);
+  return scored;
+}
+
+function keepLevel(level: string, items: ScoredName[]): Set<string> {
+  const passed = items.filter((item) => item.score >= HIERARCHY_MIN_SCORE);
+  const kept = passed.length > 0 ? passed : [highest(items)];
+  const fallback = passed.length === 0;
+  const max = Math.max(...items.map((item) => item.score));
+  const tie = items.filter((item) => item.score === max).length > 1;
+  field(`${level}_fallback`, fallback ? "yes" : "no");
+  field(`${level}_tie`, fallback && tie ? "yes" : "no");
+  for (const item of kept) {
+    field(`${level}_kept`, item.name);
+    field(`${level}_kept_score`, decimal(item.score));
+  }
+  return new Set(kept.map((item) => item.name));
+}
+
+function highest(items: ScoredName[]): ScoredName {
+  const top = items.reduce<ScoredName | undefined>((best, item) => {
+    if (best === undefined || item.score > best.score) {
+      return item;
+    }
+    return best;
+  }, undefined);
+  if (top === undefined) {
+    throw new Error("hierarchy level was empty");
+  }
+  return top;
+}
+
 export async function runVerify(): Promise<void> {
   for (const question of [EXTEND_QUESTION, DELETE_QUESTION]) {
     await verifyQuestion(question);
@@ -515,7 +703,7 @@ async function answerQuestion(
 async function printAnswer(
   label: string,
   question: string,
-  hits: Hit[],
+  hits: { heading: string; document: string }[],
   instruction: string = ANSWER_INSTRUCTION,
 ): Promise<void> {
   const passages = hits

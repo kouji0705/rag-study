@@ -1,6 +1,7 @@
 import { runCheck } from "./check.ts";
 import {
   runAnswer,
+  runDescend,
   runEmbed,
   runExclude,
   runFilter,
@@ -58,6 +59,10 @@ async function main(): Promise<number> {
     await runRetry();
     return 0;
   }
+  if (command === "descend") {
+    await runDescend();
+    return 0;
+  }
   if (command === "verify") {
     await runVerify();
     return 0;
@@ -67,7 +72,7 @@ async function main(): Promise<number> {
     return 0;
   }
   console.error(
-    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry, verify",
+    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry, verify, descend",
   );
   return 1;
 }

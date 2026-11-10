@@ -101,3 +101,14 @@ export const REVISE_INSTRUCTION =
   "渡された文書の記載に合うように、回答を1回だけ書き直してください。文書に無いことは書かず、確認できなければ「マニュアルからは確認できません」と書いてください。";
 
 export const UNCONFIRMED_ANSWER = "マニュアルからは確認できません";
+
+export const HIERARCHY_MIN_SCORE = 2;
+
+export const HIERARCHY_INSTRUCTIONS = "この質問の答えは、渡された範囲にあるか";
+
+export const HIERARCHY_CRITERIA = [
+  "この質問の答えには関係しない",
+  "話題は近いが、答えの規定はここに無い",
+  "答えの一部を裏付ける",
+  "この質問への答えを直接判断できる",
+] as const;
