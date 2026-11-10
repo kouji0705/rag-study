@@ -16,3 +16,4 @@ chapters:
   - 09-exclude
   - 10-route
   - 11-retry
+  - 12-verify
