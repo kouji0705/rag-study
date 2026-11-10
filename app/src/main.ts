@@ -1,0 +1,82 @@
+import { runCheck } from "./check.ts";
+import {
+  runAnswer,
+  runEmbed,
+  runFilter,
+  runIndex,
+  runRerank,
+  runSearch,
+  runSplit,
+} from "./commands.ts";
+
+async function main(): Promise<number> {
+  const [command = "check", ...args] = process.argv.slice(2);
+  if (command === "check") {
+    return runCheck();
+  }
+  if (command === "split") {
+    await runSplit();
+    return 0;
+  }
+  if (command === "embed") {
+    await runEmbed();
+    return 0;
+  }
+  if (command === "index") {
+    await runIndex();
+    return 0;
+  }
+  if (command === "search") {
+    await runSearch(
+      option(args, "--question") ?? "データはいつ削除される？",
+      numberOption(args, "--limit", 3),
+      option(args, "--category"),
+    );
+    return 0;
+  }
+  if (command === "answer") {
+    await runAnswer(option(args, "--question") ?? "");
+    return 0;
+  }
+  if (command === "filter") {
+    await runFilter();
+    return 0;
+  }
+  if (command === "rerank") {
+    await runRerank();
+    return 0;
+  }
+  console.error(
+    "commands: check, split, embed, index, search, answer, filter, rerank",
+  );
+  return 1;
+}
+
+function option(args: string[], name: string): string | undefined {
+  const index = args.indexOf(name);
+  if (index === -1) {
+    return undefined;
+  }
+  return args[index + 1];
+}
+
+function numberOption(args: string[], name: string, fallback: number): number {
+  const value = option(args, name);
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+  return parsed;
+}
+
+main()
+  .then((code) => {
+    process.exitCode = code;
+  })
+  .catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : "failed");
+    process.exitCode = 1;
+  });
