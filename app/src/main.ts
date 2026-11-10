@@ -2,6 +2,7 @@ import { runCheck } from "./check.ts";
 import {
   runAnswer,
   runEmbed,
+  runExclude,
   runFilter,
   runIndex,
   runRerank,
@@ -38,6 +39,10 @@ async function main(): Promise<number> {
     await runAnswer(option(args, "--question") ?? "");
     return 0;
   }
+  if (command === "exclude") {
+    await runExclude();
+    return 0;
+  }
   if (command === "filter") {
     await runFilter();
     return 0;
@@ -47,7 +52,7 @@ async function main(): Promise<number> {
     return 0;
   }
   console.error(
-    "commands: check, split, embed, index, search, answer, filter, rerank",
+    "commands: check, split, embed, index, search, answer, filter, rerank, exclude",
   );
   return 1;
 }

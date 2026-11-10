@@ -14,9 +14,17 @@ import {
   ANSWER_MODEL,
   DELETE_QUERY,
   DELETE_QUESTION,
+  DELETE_SCORE_CRITERIA,
+  DELETE_SCORE_INSTRUCTIONS,
   EMBEDDING_MODEL,
+  EXCLUDE_MIN_SCORE,
+  EXTEND_QUESTION,
+  EXTEND_SCORE_CRITERIA,
+  EXTEND_SCORE_INSTRUCTIONS,
   JEV_MODEL,
   PRORATION_QUESTION,
+  RERANK_CRITERIA,
+  RERANK_INSTRUCTIONS,
   TARGET_HEADING,
 } from "./models.ts";
 import { completeAnswer, cosineSimilarity, embedTexts } from "./openrouter.ts";
@@ -148,6 +156,19 @@ export async function runFilter(): Promise<void> {
   await printQuery(await collectionId(), PRORATION_QUESTION, 5, "退会");
 }
 
+export async function runExclude(): Promise<void> {
+  await excludeQuestion(
+    DELETE_QUESTION,
+    DELETE_SCORE_INSTRUCTIONS,
+    DELETE_SCORE_CRITERIA,
+  );
+  await excludeQuestion(
+    EXTEND_QUESTION,
+    EXTEND_SCORE_INSTRUCTIONS,
+    EXTEND_SCORE_CRITERIA,
+  );
+}
+
 export async function runRerank(): Promise<void> {
   const collection = await getOrCreateCollection();
   const embedded = await embedTexts([PRORATION_QUESTION]);
@@ -245,15 +266,60 @@ async function printQuery(
   }
 }
 
+async function excludeQuestion(
+  question: string,
+  instructions: string,
+  criteria: readonly string[],
+): Promise<void> {
+  const collection = await getOrCreateCollection();
+  const embedStarted = Date.now();
+  const embedded = await embedTexts([question]);
+  field("question", question);
+  field("requested_embedding_model", EMBEDDING_MODEL);
+  field("response_embedding_model", embedded.model);
+  field("embedding_tokens", embedded.tokens);
+  field("embedding_ms", Date.now() - embedStarted);
+  const hits = await queryCollection(collection.id, embedded.vectors[0], 10);
+  field("candidates", hits.length);
+  field("case", "naive");
+  const naiveHits = hits.slice(0, 3);
+  for (let index = 0; index < naiveHits.length; index += 1) {
+    const hit = naiveHits[index];
+    if (hit !== undefined) {
+      printHit(index + 1, hit);
+    }
+  }
+  await printAnswer("naive", question, naiveHits);
+  field("case", "exclude");
+  field("min_score", EXCLUDE_MIN_SCORE);
+  const ranked = await rankByUsefulness(hits, instructions, criteria);
+  const kept = ranked
+    .filter((hit) => hit.score >= EXCLUDE_MIN_SCORE)
+    .slice(0, 3);
+  field("kept", kept.length);
+  for (const hit of kept) {
+    field("kept_heading", hit.heading);
+    field("kept_score", decimal(hit.score));
+  }
+  if (kept.length === 0) {
+    field("answer_label", "exclude");
+    field("answer", "skipped");
+    return;
+  }
+  await printAnswer("exclude", question, kept);
+}
+
 async function rankByUsefulness(
   hits: Hit[],
+  instructions: string = RERANK_INSTRUCTIONS,
+  criteria: readonly string[] = RERANK_CRITERIA,
 ): Promise<(Hit & { score: number })[]> {
   const started = Date.now();
   let tokens = 0;
   let model = "";
   const scored = [];
   for (const hit of hits) {
-    const result = await scoreDocument(hit.document);
+    const result = await scoreDocument(hit.document, instructions, criteria);
     tokens += result.inputTokens;
     model = result.model;
     scored.push({ ...hit, score: result.score });
