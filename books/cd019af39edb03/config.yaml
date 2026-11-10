@@ -1,0 +1,14 @@
+title: "RAGを図で理解する — 検索したのに答えられないのはなぜ？"
+summary: "似た文書は見つかるのに、答えが出ない。架空のサービスの問い合わせを題材に、RAGの仕組みとつまずきを、図と具体例で学びます。"
+topics: ["rag", "llm"]
+published: false
+price: 0 # 有料の場合200〜5000
+chapters:
+  - introduction
+  - 01-what-is-rag
+  - 02-setup
+  - 03-split-by-heading
+  - 04-embedding
+  - 05-vector-db
+  - 06-naive-rag
+  - 07-metadata-filter
