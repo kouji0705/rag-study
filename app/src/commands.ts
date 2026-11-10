@@ -27,10 +27,13 @@ import {
   MAX_ADDITIONAL_SEARCHES,
   MORE_SEARCH_CRITERIA,
   MORE_SEARCH_INSTRUCTIONS,
+  PAYMENT_QUESTION,
   PLAN_EXIT_QUESTION,
   PRORATION_QUESTION,
   RERANK_CRITERIA,
   RERANK_INSTRUCTIONS,
+  RETRIEVAL_CRITERIA,
+  RETRIEVAL_INSTRUCTIONS,
   REWRITE_INSTRUCTION,
   STRATEGY_CRITERIA,
   STRATEGY_INSTRUCTIONS,
@@ -271,6 +274,73 @@ async function compareRoute(question: string): Promise<void> {
   field("document_count", documents.length);
   printHits(documents);
   await printAnswer("route", question, documents);
+}
+
+export async function runRetry(): Promise<void> {
+  for (const question of [PAYMENT_QUESTION, PRORATION_QUESTION]) {
+    await compareRetry(question);
+  }
+}
+
+async function compareRetry(question: string): Promise<void> {
+  field("question", question);
+  field("case", "naive");
+  const naive = await searchHits(question, 3);
+  field("search_count", 1);
+  field("search_ms", naive.ms);
+  field("embedding_tokens", naive.tokens);
+  printHits(naive.hits);
+  await printAnswer("naive", question, naive.hits);
+
+  field("case", "retry");
+  const first = await searchHits(question, 3);
+  field("search_ms", first.ms);
+  field("embedding_tokens", first.tokens);
+  printHits(first.hits);
+  const started = Date.now();
+  const decision = await chooseOption(
+    passageState(question, first.hits),
+    RETRIEVAL_INSTRUCTIONS,
+    { ...RETRIEVAL_CRITERIA },
+  );
+  field("choice", decision.choice);
+  field("confidence", decimal(decision.confidence));
+  printProbabilities(decision.probabilities);
+  field("requested_jev_model", JEV_MODEL);
+  field("response_jev_model", decision.model);
+  field("jev_input_tokens", decision.inputTokens);
+  field("jev_ms", Date.now() - started);
+  if (decision.choice === "Correct") {
+    field("search_count", 1);
+    field("document_count", first.hits.length);
+    await printAnswer("retry", question, first.hits);
+    return;
+  }
+  if (decision.choice !== "Ambiguous" && decision.choice !== "Incorrect") {
+    throw new Error(`unknown retrieval choice: ${decision.choice}`);
+  }
+  const rewriteStarted = Date.now();
+  const rewritten = await completeAnswer(
+    passageState(question, first.hits),
+    REWRITE_INSTRUCTION,
+  );
+  const nextQuery = rewritten.text.split("\n")[0]?.trim() ?? "";
+  if (nextQuery.length === 0) {
+    throw new Error("rewritten query was empty");
+  }
+  field("rewritten_query", nextQuery);
+  field("rewrite_input_tokens", rewritten.inputTokens);
+  field("rewrite_ms", Date.now() - rewriteStarted);
+  const again = await searchHits(nextQuery, 3);
+  field("additional_search_ms", again.ms);
+  field("additional_embedding_tokens", again.tokens);
+  field("case", "additional");
+  printHits(again.hits);
+  const documents = mergeHits(first.hits, again.hits);
+  field("search_count", 2);
+  field("document_count", documents.length);
+  printHits(documents);
+  await printAnswer("retry", question, documents);
 }
 
 export async function runRerank(): Promise<void> {
