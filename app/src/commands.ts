@@ -7,6 +7,12 @@ import {
   readDocument,
   upsertChunks,
 } from "./chroma.ts";
+import {
+  GRAPH_DEMO_HOPS,
+  GRAPH_DEMO_QUESTION,
+  GRAPH_DEMO_START,
+  walkRelations,
+} from "./graph.ts";
 import { placeChunks } from "./hierarchy.ts";
 import { decimal, field } from "./http.ts";
 import { chooseOption, scoreDocument } from "./jev.ts";
@@ -355,6 +361,56 @@ async function compareRetry(question: string): Promise<void> {
   field("document_count", documents.length);
   printHits(documents);
   await printAnswer("retry", question, documents);
+}
+
+export async function runRelate(): Promise<void> {
+  field("question", GRAPH_DEMO_QUESTION);
+  field("start", GRAPH_DEMO_START);
+  field("start_source", "manual");
+  field("hops", GRAPH_DEMO_HOPS);
+  const edges = walkRelations([GRAPH_DEMO_START], GRAPH_DEMO_HOPS);
+  field("relation_count", edges.length);
+  for (const edge of edges) {
+    field("from", edge.from);
+    field("relation", edge.relation);
+    field("to", edge.to);
+    field("source_id", edge.sourceId);
+  }
+  const chunks = await loadChunks();
+  const sources = edges.map((edge) => {
+    const chunk = chunks.find((item) => item.id === edge.sourceId);
+    if (chunk === undefined) {
+      throw new Error(`relation source missing: ${edge.sourceId}`);
+    }
+    return chunk;
+  });
+  const unique = sources.filter(
+    (chunk, index) =>
+      sources.findIndex((item) => item.id === chunk.id) === index,
+  );
+  field("document_count", unique.length);
+  for (const chunk of unique) {
+    field("heading", chunk.heading);
+  }
+  const relationText = edges
+    .map((edge) => `${edge.from} —${edge.relation}→ ${edge.to}`)
+    .join("\n");
+  const passages = unique
+    .map((chunk) => `見出し: ${chunk.heading}\n${chunk.body}`)
+    .join("\n\n");
+  const started = Date.now();
+  const answer = await completeAnswer(
+    `質問:\n${GRAPH_DEMO_QUESTION}\n\n関係:\n${relationText}\n\n文書:\n${passages}`,
+    ANSWER_INSTRUCTION,
+  );
+  field("requested_answer_model", ANSWER_MODEL);
+  field("response_answer_model", answer.model);
+  field("answer_input_tokens", answer.inputTokens);
+  field("answer_output_tokens", answer.outputTokens);
+  field("answer_ms", Date.now() - started);
+  console.log("answer:");
+  console.log(answer.text);
+  console.log("---");
 }
 
 export async function runHop(): Promise<void> {
