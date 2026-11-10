@@ -505,15 +505,19 @@ export async function runRelate(): Promise<void> {
 }
 
 export async function runHop(): Promise<void> {
-  for (const question of [MULTI_QUESTION, DELETE_QUESTION]) {
-    await hopQuestion(question);
-  }
+  const collection = await getOrCreateCollection();
+  field("collection_count", await countRecords(collection.id));
+  field("space", collection.space);
+  await hopQuestion(MULTI_QUESTION, 3);
+  await hopQuestion(DELETE_QUESTION, 3);
+  await hopQuestion(MULTI_QUESTION, 1);
 }
 
-async function hopQuestion(question: string): Promise<void> {
+async function hopQuestion(question: string, limit: number): Promise<void> {
   field("question", question);
+  field("first_limit", limit);
   field("case", "naive");
-  const naive = await searchHits(question, 3);
+  const naive = await searchHits(question, limit);
   field("search_count", 1);
   field("search_ms", naive.ms);
   field("embedding_tokens", naive.tokens);
@@ -521,7 +525,7 @@ async function hopQuestion(question: string): Promise<void> {
   await printAnswer("naive", question, naive.hits);
 
   field("case", "hop");
-  const first = await searchHits(question, 3);
+  const first = await searchHits(question, limit);
   field("hop", 1);
   field("search_ms", first.ms);
   field("embedding_tokens", first.tokens);
@@ -553,6 +557,7 @@ async function hopQuestion(question: string): Promise<void> {
       break;
     }
     const gap = HOP_CRITERIA[choice as keyof typeof HOP_CRITERIA];
+    field(`hop${searches}_gap`, gap);
     const rewriteStarted = Date.now();
     const rewritten = await completeAnswer(
       `${passageState(question, documents)}\n\n不足:\n${gap}`,
@@ -562,10 +567,10 @@ async function hopQuestion(question: string): Promise<void> {
     if (nextQuery.length === 0) {
       throw new Error("rewritten query was empty");
     }
-    field("rewritten_query", nextQuery);
-    field("rewrite_input_tokens", rewritten.inputTokens);
-    field("rewrite_output_tokens", rewritten.outputTokens);
-    field("rewrite_ms", Date.now() - rewriteStarted);
+    field(`hop${searches}_rewritten_query`, nextQuery);
+    field(`hop${searches}_rewrite_input_tokens`, rewritten.inputTokens);
+    field(`hop${searches}_rewrite_output_tokens`, rewritten.outputTokens);
+    field(`hop${searches}_rewrite_ms`, Date.now() - rewriteStarted);
     const again = await searchHits(nextQuery, 3);
     field("additional_search_ms", again.ms);
     field("additional_embedding_tokens", again.tokens);
