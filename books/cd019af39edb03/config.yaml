@@ -1,0 +1,16 @@
+title: "Jev"
+summary: "手元の資料を使って答えるRAGを、一つのマニュアルの上で読み比べます。"
+topics: ["rag", "llm"]
+published: false
+price: 0 # 有料の場合200〜5000
+chapters:
+  - toc
+  - introduction
+  - part1
+  - 01-what-is-rag
+  - 02-setup
+  - 03-split-by-heading
+  - 04-embedding
+  - 05-vector-db
+  - 06-naive-rag
+  - 07-metadata-filter
