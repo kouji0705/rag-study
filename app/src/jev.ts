@@ -7,7 +7,11 @@ export type ScoreResult = {
   inputTokens: number;
 };
 
-export async function scoreDocument(document: string): Promise<ScoreResult> {
+export async function scoreDocument(
+  document: string,
+  instructions: string = RERANK_INSTRUCTIONS,
+  criteria: readonly string[] = RERANK_CRITERIA,
+): Promise<ScoreResult> {
   const payload = await postJson(
     "https://api.typesafe.ai/v1/systemone",
     {
@@ -16,8 +20,8 @@ export async function scoreDocument(document: string): Promise<ScoreResult> {
       questions: {
         usefulness: {
           type: "score",
-          instructions: RERANK_INSTRUCTIONS,
-          criteria: [...RERANK_CRITERIA],
+          instructions,
+          criteria: [...criteria],
         },
       },
     },
