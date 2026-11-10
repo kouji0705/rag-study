@@ -1,3 +1,4 @@
 .articles
 .env
-
+node_modules
+.cursor

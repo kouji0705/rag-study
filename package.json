@@ -1,0 +1,24 @@
+{
+  "name": "rag-study",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "scripts": {
+    "preview": "zenn preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kouji0705/rag-study.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kouji0705/rag-study/issues"
+  },
+  "homepage": "https://github.com/kouji0705/rag-study#readme",
+  "dependencies": {
+    "zenn-cli": "^0.5.14"
+  }
+}
