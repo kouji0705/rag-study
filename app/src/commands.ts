@@ -1,0 +1,282 @@
+import {
+  countRecords,
+  getOrCreateCollection,
+  type Hit,
+  printHit,
+  queryCollection,
+  readDocument,
+  upsertChunks,
+} from "./chroma.ts";
+import { decimal, field } from "./http.ts";
+import { scoreDocument } from "./jev.ts";
+import { type Chunk, loadChunks } from "./manual.ts";
+import {
+  ANSWER_MODEL,
+  DELETE_QUERY,
+  DELETE_QUESTION,
+  EMBEDDING_MODEL,
+  JEV_MODEL,
+  PRORATION_QUESTION,
+  TARGET_HEADING,
+} from "./models.ts";
+import { completeAnswer, cosineSimilarity, embedTexts } from "./openrouter.ts";
+
+export async function runSplit(): Promise<void> {
+  const chunks = await loadChunks();
+  field("count", chunks.length);
+  for (const chunk of chunks) {
+    field("id", chunk.id);
+    field("category", chunk.category);
+    field("heading", chunk.heading);
+    console.log("body:");
+    console.log(chunk.body);
+    console.log("---");
+  }
+}
+
+export async function runEmbed(): Promise<void> {
+  const chunks = await loadChunks();
+  const deletion = requireChunk(chunks, "退会後のデータ削除");
+  const billingDate = requireChunk(chunks, "請求日");
+  const started = Date.now();
+  const embedded = await embedTexts([
+    deletion.body,
+    billingDate.body,
+    DELETE_QUERY,
+  ]);
+  field("requested_model", EMBEDDING_MODEL);
+  field("response_model", embedded.model);
+  field("dimensions", embedded.vectors[0]?.length ?? 0);
+  field("embedding_tokens", embedded.tokens);
+  field("embedding_ms", Date.now() - started);
+  field("pair", "データはいつ削除される？ / 退会後のデータ削除");
+  field(
+    "cosine_similarity",
+    decimal(cosineSimilarity(embedded.vectors[2], embedded.vectors[0])),
+  );
+  field("pair", "データはいつ削除される？ / 請求日");
+  field(
+    "cosine_similarity",
+    decimal(cosineSimilarity(embedded.vectors[2], embedded.vectors[1])),
+  );
+}
+
+export async function runIndex(): Promise<void> {
+  const chunks = await loadChunks();
+  const started = Date.now();
+  const embedded = await embedTexts(chunks.map((chunk) => chunk.body));
+  field("requested_model", EMBEDDING_MODEL);
+  field("response_model", embedded.model);
+  field("dimensions", embedded.vectors[0]?.length ?? 0);
+  field("embedding_tokens", embedded.tokens);
+  field("embedding_ms", Date.now() - started);
+
+  const collection = await getOrCreateCollection();
+  field("collection", "taskflow");
+  field("space", collection.space);
+  await upsertChunks(
+    collection.id,
+    chunks.map((chunk, index) => ({
+      id: chunk.id,
+      body: chunk.body,
+      embedding: embedded.vectors[index],
+      metadata: {
+        heading: chunk.heading,
+        category: chunk.category,
+        source: chunk.source,
+        title: chunk.title,
+      },
+    })),
+  );
+  const count = await countRecords(collection.id);
+  field("count", count);
+  field("expected_count", chunks.length);
+  const sample = requireChunk(chunks, "退会後のデータ削除");
+  const stored = await readDocument(collection.id, sample.id);
+  field("readback", stored === sample.body ? "match" : "mismatch");
+
+  const queryStarted = Date.now();
+  const queryEmbedding = await embedTexts([DELETE_QUERY]);
+  field("query", DELETE_QUERY);
+  field("query_embedding_tokens", queryEmbedding.tokens);
+  field("query_embedding_ms", Date.now() - queryStarted);
+  const hits = await queryCollection(
+    collection.id,
+    queryEmbedding.vectors[0],
+    3,
+  );
+  for (let index = 0; index < hits.length; index += 1) {
+    printHit(index + 1, hits[index]);
+  }
+  const top = hits[0];
+  const topIndex = chunks.findIndex((chunk) => chunk.id === top?.id);
+  if (top !== undefined && topIndex >= 0) {
+    const similarity = cosineSimilarity(
+      queryEmbedding.vectors[0],
+      embedded.vectors[topIndex],
+    );
+    field("top_cosine_similarity", decimal(similarity));
+    field("top_distance_plus_similarity", decimal(top.distance + similarity));
+  }
+}
+
+export async function runSearch(
+  question: string,
+  limit: number,
+  category?: string,
+): Promise<void> {
+  const collection = await getOrCreateCollection();
+  const count = await countRecords(collection.id);
+  field("count", count);
+  field("space", collection.space);
+  await printQuery(collection.id, question, limit, category);
+}
+
+export async function runAnswer(question = ""): Promise<void> {
+  const questions =
+    question.length > 0 ? [question] : [DELETE_QUESTION, PRORATION_QUESTION];
+  for (const item of questions) {
+    await answerQuestion(item, 3, "naive");
+  }
+}
+
+export async function runFilter(): Promise<void> {
+  field("question", PRORATION_QUESTION);
+  field("filter", "none");
+  await printQuery(await collectionId(), PRORATION_QUESTION, 5);
+  field("filter", "退会");
+  await printQuery(await collectionId(), PRORATION_QUESTION, 5, "退会");
+}
+
+export async function runRerank(): Promise<void> {
+  const collection = await getOrCreateCollection();
+  const embedded = await embedTexts([PRORATION_QUESTION]);
+  field("question", PRORATION_QUESTION);
+  field("requested_model", EMBEDDING_MODEL);
+  field("response_model", embedded.model);
+  field("embedding_tokens", embedded.tokens);
+  const hits = await queryCollection(collection.id, embedded.vectors[0], 10);
+  field("case", "top10");
+  const ranked = await rankByUsefulness(hits);
+  const selected = ranked.slice(0, 3);
+  await printAnswer("rerank", PRORATION_QUESTION, selected);
+  const targetIncluded = hits.some((hit) => hit.heading === TARGET_HEADING);
+  field("target_in_top10", targetIncluded ? "yes" : "no");
+  if (!targetIncluded) {
+    return;
+  }
+  const wider = await queryCollection(collection.id, embedded.vectors[0], 20);
+  const excluded = wider
+    .filter((hit) => hit.heading !== TARGET_HEADING)
+    .slice(0, 10);
+  field("case", "target-excluded");
+  const excludedRanked = await rankByUsefulness(excluded);
+  await printAnswer(
+    "rerank-excluded",
+    PRORATION_QUESTION,
+    excludedRanked.slice(0, 3),
+  );
+}
+
+async function answerQuestion(
+  question: string,
+  limit: number,
+  label: string,
+): Promise<void> {
+  const collection = await getOrCreateCollection();
+  const embedStarted = Date.now();
+  const embedded = await embedTexts([question]);
+  field("question", question);
+  field("label", label);
+  field("requested_embedding_model", EMBEDDING_MODEL);
+  field("response_embedding_model", embedded.model);
+  field("embedding_tokens", embedded.tokens);
+  field("embedding_ms", Date.now() - embedStarted);
+  const hits = await queryCollection(collection.id, embedded.vectors[0], limit);
+  for (let index = 0; index < hits.length; index += 1) {
+    printHit(index + 1, hits[index]);
+  }
+  await printAnswer(label, question, hits);
+}
+
+async function printAnswer(
+  label: string,
+  question: string,
+  hits: Hit[],
+): Promise<void> {
+  const passages = hits
+    .map((hit) => `見出し: ${hit.heading}\n${hit.document}`)
+    .join("\n\n");
+  const started = Date.now();
+  const answer = await completeAnswer(
+    `質問:\n${question}\n\n文書:\n${passages}`,
+  );
+  field("answer_label", label);
+  field("requested_answer_model", ANSWER_MODEL);
+  field("response_answer_model", answer.model);
+  field("answer_input_tokens", answer.inputTokens);
+  field("answer_output_tokens", answer.outputTokens);
+  field("answer_ms", Date.now() - started);
+  console.log("answer:");
+  console.log(answer.text);
+  console.log("---");
+}
+
+async function printQuery(
+  collectionId: string,
+  question: string,
+  limit: number,
+  category?: string,
+): Promise<void> {
+  const embedded = await embedTexts([question]);
+  field("question", question);
+  field("embedding_tokens", embedded.tokens);
+  if (category !== undefined) {
+    field("category", category);
+  }
+  const hits = await queryCollection(
+    collectionId,
+    embedded.vectors[0],
+    limit,
+    category,
+  );
+  for (let index = 0; index < hits.length; index += 1) {
+    printHit(index + 1, hits[index]);
+  }
+}
+
+async function rankByUsefulness(
+  hits: Hit[],
+): Promise<(Hit & { score: number })[]> {
+  const started = Date.now();
+  let tokens = 0;
+  let model = "";
+  const scored = [];
+  for (const hit of hits) {
+    const result = await scoreDocument(hit.document);
+    tokens += result.inputTokens;
+    model = result.model;
+    scored.push({ ...hit, score: result.score });
+    field("heading", hit.heading);
+    field("distance", decimal(hit.distance));
+    field("score", decimal(result.score));
+  }
+  field("requested_jev_model", JEV_MODEL);
+  field("response_jev_model", model);
+  field("jev_input_tokens", tokens);
+  field("jev_ms", Date.now() - started);
+  return scored.sort((left, right) => right.score - left.score);
+}
+
+async function collectionId(): Promise<string> {
+  const collection = await getOrCreateCollection();
+  return collection.id;
+}
+
+function requireChunk(chunks: Chunk[], heading: string): Chunk {
+  const chunk = chunks.find((item) => item.heading === heading);
+  if (chunk === undefined) {
+    throw new Error(`missing heading: ${heading}`);
+  }
+  return chunk;
+}

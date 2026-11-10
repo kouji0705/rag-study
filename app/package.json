@@ -1,0 +1,13 @@
+{
+  "name": "rag-study-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsx src/main.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

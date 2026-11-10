@@ -1,0 +1,24 @@
+services:
+  chroma:
+    image: chromadb/chroma:1.5.4
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma-data:/data
+
+  app:
+    build: ./app
+    env_file:
+      - .env
+    environment:
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+      MANUAL_DIR: /manual
+    volumes:
+      - ./manual:/manual:ro
+      - ./app/src:/app/src:ro
+    depends_on:
+      - chroma
+
+volumes:
+  chroma-data:
