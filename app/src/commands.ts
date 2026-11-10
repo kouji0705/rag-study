@@ -8,9 +8,10 @@ import {
   upsertChunks,
 } from "./chroma.ts";
 import { decimal, field } from "./http.ts";
-import { scoreDocument } from "./jev.ts";
+import { chooseOption, scoreDocument } from "./jev.ts";
 import { type Chunk, loadChunks } from "./manual.ts";
 import {
+  ANSWER_INSTRUCTION,
   ANSWER_MODEL,
   DELETE_QUERY,
   DELETE_QUESTION,
@@ -21,11 +22,20 @@ import {
   EXTEND_QUESTION,
   EXTEND_SCORE_CRITERIA,
   EXTEND_SCORE_INSTRUCTIONS,
+  GENERAL_INSTRUCTION,
   JEV_MODEL,
+  MAX_ADDITIONAL_SEARCHES,
+  MORE_SEARCH_CRITERIA,
+  MORE_SEARCH_INSTRUCTIONS,
+  PLAN_EXIT_QUESTION,
   PRORATION_QUESTION,
   RERANK_CRITERIA,
   RERANK_INSTRUCTIONS,
+  REWRITE_INSTRUCTION,
+  STRATEGY_CRITERIA,
+  STRATEGY_INSTRUCTIONS,
   TARGET_HEADING,
+  TERM_QUESTION,
 } from "./models.ts";
 import { completeAnswer, cosineSimilarity, embedTexts } from "./openrouter.ts";
 
@@ -169,6 +179,100 @@ export async function runExclude(): Promise<void> {
   );
 }
 
+export async function runRoute(): Promise<void> {
+  for (const question of [TERM_QUESTION, DELETE_QUESTION, PLAN_EXIT_QUESTION]) {
+    await compareRoute(question);
+  }
+}
+
+async function compareRoute(question: string): Promise<void> {
+  field("question", question);
+  field("case", "naive");
+  const naive = await searchHits(question, 3);
+  field("search_count", 1);
+  field("search_ms", naive.ms);
+  field("embedding_tokens", naive.tokens);
+  printHits(naive.hits);
+  await printAnswer("naive", question, naive.hits);
+
+  field("case", "route");
+  const decisionStarted = Date.now();
+  const decision = await chooseOption(question, STRATEGY_INSTRUCTIONS, {
+    ...STRATEGY_CRITERIA,
+  });
+  field("choice", decision.choice);
+  field("confidence", decimal(decision.confidence));
+  printProbabilities(decision.probabilities);
+  field("requested_jev_model", JEV_MODEL);
+  field("response_jev_model", decision.model);
+  field("jev_input_tokens", decision.inputTokens);
+  field("jev_ms", Date.now() - decisionStarted);
+
+  if (decision.choice === "none") {
+    field("search_count", 0);
+    await printAnswer("route", question, [], GENERAL_INSTRUCTION);
+    return;
+  }
+  if (decision.choice === "once") {
+    const searched = await searchHits(question, 3);
+    field("search_count", 1);
+    field("search_ms", searched.ms);
+    field("embedding_tokens", searched.tokens);
+    printHits(searched.hits);
+    await printAnswer("route", question, searched.hits);
+    return;
+  }
+  if (decision.choice !== "multi") {
+    throw new Error(`unknown strategy: ${decision.choice}`);
+  }
+
+  const first = await searchHits(question, 3);
+  field("search_ms", first.ms);
+  field("embedding_tokens", first.tokens);
+  printHits(first.hits);
+  let documents = first.hits;
+  let searches = 1;
+  for (let extra = 0; extra < MAX_ADDITIONAL_SEARCHES; extra += 1) {
+    const followStarted = Date.now();
+    const follow = await chooseOption(
+      passageState(question, documents),
+      MORE_SEARCH_INSTRUCTIONS,
+      { ...MORE_SEARCH_CRITERIA },
+    );
+    field("follow_choice", follow.choice);
+    field("follow_confidence", decimal(follow.confidence));
+    printProbabilities(follow.probabilities);
+    field("follow_jev_input_tokens", follow.inputTokens);
+    field("follow_jev_ms", Date.now() - followStarted);
+    if (follow.choice !== "more") {
+      break;
+    }
+    const rewriteStarted = Date.now();
+    const rewritten = await completeAnswer(
+      passageState(question, documents),
+      REWRITE_INSTRUCTION,
+    );
+    const nextQuery = rewritten.text.split("\n")[0]?.trim() ?? "";
+    if (nextQuery.length === 0) {
+      throw new Error("rewritten query was empty");
+    }
+    field("rewritten_query", nextQuery);
+    field("rewrite_input_tokens", rewritten.inputTokens);
+    field("rewrite_ms", Date.now() - rewriteStarted);
+    const again = await searchHits(nextQuery, 3);
+    field("additional_search_ms", again.ms);
+    field("additional_embedding_tokens", again.tokens);
+    field("case", "additional");
+    printHits(again.hits);
+    documents = mergeHits(documents, again.hits);
+    searches += 1;
+  }
+  field("search_count", searches);
+  field("document_count", documents.length);
+  printHits(documents);
+  await printAnswer("route", question, documents);
+}
+
 export async function runRerank(): Promise<void> {
   const collection = await getOrCreateCollection();
   const embedded = await embedTexts([PRORATION_QUESTION]);
@@ -224,14 +328,17 @@ async function printAnswer(
   label: string,
   question: string,
   hits: Hit[],
+  instruction: string = ANSWER_INSTRUCTION,
 ): Promise<void> {
   const passages = hits
     .map((hit) => `見出し: ${hit.heading}\n${hit.document}`)
     .join("\n\n");
+  const user =
+    hits.length === 0
+      ? `質問:\n${question}`
+      : `質問:\n${question}\n\n文書:\n${passages}`;
   const started = Date.now();
-  const answer = await completeAnswer(
-    `質問:\n${question}\n\n文書:\n${passages}`,
-  );
+  const answer = await completeAnswer(user, instruction);
   field("answer_label", label);
   field("requested_answer_model", ANSWER_MODEL);
   field("response_answer_model", answer.model);
@@ -332,6 +439,55 @@ async function rankByUsefulness(
   field("jev_input_tokens", tokens);
   field("jev_ms", Date.now() - started);
   return scored.sort((left, right) => right.score - left.score);
+}
+
+async function searchHits(
+  question: string,
+  limit: number,
+): Promise<{ hits: Hit[]; tokens: number; ms: number }> {
+  const collection = await getOrCreateCollection();
+  const started = Date.now();
+  const embedded = await embedTexts([question]);
+  const vector = embedded.vectors[0];
+  if (vector === undefined) {
+    throw new Error("query embedding missing");
+  }
+  const hits = await queryCollection(collection.id, vector, limit);
+  return { hits, tokens: embedded.tokens, ms: Date.now() - started };
+}
+
+function printHits(hits: Hit[]): void {
+  for (let index = 0; index < hits.length; index += 1) {
+    const hit = hits[index];
+    if (hit !== undefined) {
+      printHit(index + 1, hit);
+    }
+  }
+}
+
+function printProbabilities(probabilities: Record<string, number>): void {
+  for (const [key, value] of Object.entries(probabilities)) {
+    field(`probability_${key}`, decimal(value));
+  }
+}
+
+function passageState(question: string, hits: Hit[]): string {
+  const passages = hits
+    .map((hit) => `見出し: ${hit.heading}\n${hit.document}`)
+    .join("\n\n");
+  return `質問:\n${question}\n\n文書:\n${passages}`;
+}
+
+function mergeHits(current: Hit[], extra: Hit[]): Hit[] {
+  const seen = new Set(current.map((hit) => hit.id));
+  const merged = [...current];
+  for (const hit of extra) {
+    if (!seen.has(hit.id)) {
+      seen.add(hit.id);
+      merged.push(hit);
+    }
+  }
+  return merged;
 }
 
 async function collectionId(): Promise<string> {
