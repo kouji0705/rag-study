@@ -895,8 +895,10 @@ export async function runRerank(): Promise<void> {
   const hits = await queryCollection(collection.id, embedded.vectors[0], 10);
   field("case", "top10");
   const ranked = await rankByUsefulness(hits);
-  const selected = ranked.slice(0, 3);
-  await printAnswer("rerank", PRORATION_QUESTION, selected);
+  for (const passCount of [1, 2, 3]) {
+    await answerSelection("naive", hits.slice(0, passCount));
+    await answerSelection("rerank", ranked.slice(0, passCount));
+  }
   const targetIncluded = hits.some((hit) => hit.heading === TARGET_HEADING);
   field("target_in_top10", targetIncluded ? "yes" : "no");
   if (!targetIncluded) {
@@ -908,11 +910,22 @@ export async function runRerank(): Promise<void> {
     .slice(0, 10);
   field("case", "target-excluded");
   const excludedRanked = await rankByUsefulness(excluded);
-  await printAnswer(
-    "rerank-excluded",
-    PRORATION_QUESTION,
-    excludedRanked.slice(0, 3),
-  );
+  await answerSelection("rerank-excluded", excludedRanked.slice(0, 3));
+}
+
+async function answerSelection(
+  method: string,
+  hits: { heading: string; document: string; score?: number }[],
+): Promise<void> {
+  field("case", `${method}-top${hits.length}`);
+  field("pass_count", hits.length);
+  for (const hit of hits) {
+    field("passed_heading", hit.heading);
+    if (typeof hit.score === "number") {
+      field("passed_score", decimal(hit.score));
+    }
+  }
+  await printAnswer(`${method}-top${hits.length}`, PRORATION_QUESTION, hits);
 }
 
 async function answerQuestion(
@@ -1045,6 +1058,7 @@ async function rankByUsefulness(
     field("heading", hit.heading);
     field("distance", decimal(hit.distance));
     field("score", decimal(result.score));
+    field("jev_usefulness", JSON.stringify(result.usefulness));
   }
   field("requested_jev_model", JEV_MODEL);
   field("response_jev_model", model);

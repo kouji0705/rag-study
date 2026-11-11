@@ -68,6 +68,7 @@ export type ScoreResult = {
   model: string;
   score: number;
   inputTokens: number;
+  usefulness: Record<string, unknown>;
 };
 
 export async function scoreDocument(
@@ -106,5 +107,16 @@ export async function scoreDocument(
     isRecord(usage) && typeof usage.input_tokens === "number"
       ? usage.input_tokens
       : 0;
-  return { model: payload.model, score: answer.score, inputTokens };
+  const usefulness: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(answer)) {
+    if (key !== "state") {
+      usefulness[key] = value;
+    }
+  }
+  return {
+    model: payload.model,
+    score: answer.score,
+    inputTokens,
+    usefulness,
+  };
 }
