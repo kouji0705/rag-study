@@ -1,0 +1,145 @@
+count: 18
+id: account.md#ログイン
+category: アカウント
+heading: ログイン
+body:
+アカウント
+ログイン
+メールアドレスとパスワードでログインします。
+---
+id: account.md#パスワードの再設定
+category: アカウント
+heading: パスワードの再設定
+body:
+アカウント
+パスワードの再設定
+登録したメールアドレスへ、再設定用のリンクを送ります。
+---
+id: billing.md#請求日
+category: 請求
+heading: 請求日
+body:
+請求
+請求日
+料金は毎月1日に請求します。
+---
+id: billing.md#日割り請求のルール
+category: 請求
+heading: 日割り請求のルール
+body:
+請求
+日割り請求のルール
+月の途中で契約を開始した場合、開始日から月末までの日割りで請求します。
+---
+id: billing.md#プラン変更時の日割り
+category: 請求
+heading: プラン変更時の日割り
+body:
+請求
+プラン変更時の日割り
+月の途中で上位プランへ変更した場合、変更日から月末までを日割りで計算します。下位プランへの変更は、翌月から新しい料金です。
+---
+id: billing.md#Standardプランの月額
+category: 請求
+heading: Standardプランの月額
+body:
+請求
+Standardプランの月額
+Standardプランの月額は980円です。年払いの割引はありません。
+---
+id: billing.md#Proプランの月額
+category: 請求
+heading: Proプランの月額
+body:
+請求
+Proプランの月額
+Proプランの月額は12000円（税別）です。年払いの割引はありません。
+---
+id: billing.md#SSO
+category: 請求
+heading: SSO
+body:
+請求
+SSO
+SSOが使えるのはProプランだけです。一度の認証で、複数のサービスにログインできます。
+---
+id: billing.md#支払い方法
+category: 請求
+heading: 支払い方法
+body:
+請求
+支払い方法
+支払いは、登録したクレジットカードから引き落とします。
+---
+id: billing.md#支払いの失敗
+category: 請求
+heading: 支払いの失敗
+body:
+請求
+支払いの失敗
+クレジットカードの決済に失敗したまま14日を過ぎると、タスクは読み取り専用になります。支払いが完了すると、編集できるように戻ります。
+---
+id: billing.md#領収書
+category: 請求
+heading: 領収書
+body:
+請求
+領収書
+領収書は、支払い完了後に管理画面から表示できます。
+---
+id: billing.md#プランの種類
+category: 請求
+heading: プランの種類
+body:
+請求
+プランの種類
+Free、Standard、Proの3種類です。Freeは1人まで、Standardは10人まで、Proは人数の上限がありません。
+---
+id: withdrawal.md#退会できる人
+category: 退会
+heading: 退会できる人
+body:
+退会
+退会できる人
+契約者本人が、管理画面から退会を申し込めます。
+---
+id: withdrawal.md#退会の手続き
+category: 退会
+heading: 退会の手続き
+body:
+退会
+退会の手続き
+管理画面の「契約」から退会を選ぶと、確認のあと退会が完了します。
+---
+id: withdrawal.md#退会後の請求
+category: 退会
+heading: 退会後の請求
+body:
+退会
+退会後の請求
+解約した月の料金は満額です。日割りにはなりません。
+---
+id: withdrawal.md#退会後のデータ削除
+category: 退会
+heading: 退会後のデータ削除
+body:
+退会
+退会後のデータ削除
+退会完了から30日後にデータを削除します。
+---
+id: withdrawal.md#退会前の書き出し
+category: 退会
+heading: 退会前の書き出し
+body:
+退会
+退会前の書き出し
+退会が完了する前であれば、登録したデータを書き出せます。
+---
+id: withdrawal.md#解約の取り消し
+category: 退会
+heading: 解約の取り消し
+body:
+退会
+解約の取り消し
+退会完了の当日中であれば、退会を取り消せます。翌日以降は取り消せません。
+---
