@@ -1,4 +1,5 @@
 ## RAGとは何か？
+
 **RAG（Retrieval-Augmented Generation：検索拡張生成）とは、外部の資料から必要な情報を検索し、その情報をLLMに渡して回答を生成する仕組みです。** LLMが知らない情報でも、必要な資料を渡すことで、その内容を根拠に回答できるようにします。
 
 ![RAGとは何か？](https://static.zenn.studio/user-upload/a28a74fc246d-20261111.png)
@@ -30,21 +31,7 @@ TaskFlowのマニュアルには、以下の規定があります。
 
 ## RAGの基本的な仕組み
 
-RAGは、大きく3つの処理で構成されます。
-
-```mermaid
-flowchart LR
-    M["マニュアル"] --> I["① Indexing"]
-    I --> DB[("ベクトルDB")]
-    DB --> R["② Retrieval"]
-    Q["質問"] --> R
-    R --> G["③ Generation"]
-    Q --> G
-    G --> A["回答"]
-    style I fill:#fff0db,stroke:#d9822b
-    style R fill:#dff4ef,stroke:#228678
-    style G fill:#fff0db,stroke:#d9822b
-```
+本書で実装するRAGは、Indexing・Retrieval・Generationの3つの処理で構成します。検索にはEmbeddingとベクトルDBを使用します。
 
 ### ① Indexing：検索できるように準備する
 
@@ -94,14 +81,6 @@ RAGでは、必要な部分を検索して渡すことで、入力する情報�
 
 ## まとめ
 
-RAGは、**必要な資料を検索し、その内容を使ってLLMに回答してもらう仕組み**です。
+RAGは、必要な情報を検索し、その内容をLLMへ渡して回答を生成する仕組みです。
 
-| 処理 | 役割 |
-|---|---|
-| Indexing | 資料を検索できる状態にする |
-| Retrieval | 質問に関連する資料を探す |
-| Generation | 検索した資料を使って回答する |
-
-まずは、検索結果をそのままLLMへ渡す基本形（Naive RAG）を学び、その後、検索や回答の問題を改善する方法へ進みます。
-
-次章では、RAGを動かすための環境を構築します。
+ただし、検索した文書が正しい根拠になるとは限りません。次章からは実際にRAGを構築し、検索と回答の仕組みを確認していきます。

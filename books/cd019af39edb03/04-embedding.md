@@ -1,39 +1,80 @@
----
-title: "第4章 文章をベクトルにする"
----
+## Embeddingとは？
 
-**この章では、言い方の違う質問と規定を、同じ基準で比べる準備をします。** 文章を数値へ変えるEmbeddingを使い、実際に二つの規定との近さを計算します。学ぶポイントは、数値の近さが示すものと、示さないものです。
+**Embedding（埋め込み）とは、文章を意味的な特徴を表す数値の列（ベクトル）に変換する処理です。** 例えば、「データはいつ消えますか？」と「退会後のデータ削除について」は異なる単語を使っていますが、似た意味を持っています。Embeddingモデルを使うと、こうした文章同士の意味的な近さを数値で比較できます。
 
-```mermaid
-flowchart LR
-    D["規定の本文"] --> E["同じEmbeddingモデル"]
-    Q["質問"] --> E
-    E --> V["同じ次元の数値列"] --> C["向きの近さを比べる"]
-    style E fill:#fff0db,stroke:#d9822b
-    style C fill:#dff4ef,stroke:#228678
-```
+本書では、OpenRouter経由で`text-embedding-3-small`を使用します。今回の設定では、各文章が1536次元のベクトルに変換されます。
 
-## 単語が一致しない問い合わせを探したい
+![Embeddingとは](https://static.zenn.studio/user-upload/59b5cb61dae8-20261111.png)
 
-「データをいつ**消す**？」と「退会後のデータ**削除**」は、言葉が違っても同じ話をしています。単語の一致だけで探すと、このような言い換えに対応する工夫が必要です。
+## ① 今回の実験内容
 
-Embeddingは、文章の意味を反映する数値の列を作る処理です。その数値の列をベクトルと呼びます。意味が近い文章を近くに置くように学習したモデルを使い、文章同士を計算で比べます。
+今回は「データはいつ削除される？」という質問と、次の2件のマニュアルの意味的な近さを比較します。
 
-ただし、ベクトルの各成分に「料金」「退会」といった名前を人間が付けるわけではありません。数値を一つずつ読むより、同じモデルで作ったベクトル同士を比べて使います。
+| 文書 | 内容 |
+|---|---|
+| 退会後のデータ削除 | 退会完了から30日後にデータを削除します |
+| 請求日 | 料金は毎月1日に請求します |
 
-## STEP 1：何を数値にするか決める
+「退会後のデータ削除」の方が質問に近いはずですが、Embeddingでも同じ結果になるでしょうか。
 
-`app/src/commands.ts` の `runEmbed` は、次の3文字列をまとめて送ります。
+## ② 実装コードを確認する
+
+実際に実行する処理は、`app/src/commands.ts`の`runEmbed()`です。
 
 ```typescript
-const embedded = await embedTexts([
-  deletion.body,
-  billingDate.body,
-  DELETE_QUERY,
-]);
+export async function runEmbed(): Promise<void> {
+  const chunks = await loadChunks();
+  const deletion = requireChunk(chunks, "退会後のデータ削除");
+  const billingDate = requireChunk(chunks, "請求日");
+  const started = Date.now();
+
+  const embedded = await embedTexts([
+    deletion.body,
+    billingDate.body,
+    DELETE_QUERY,
+  ]);
+
+  field("requested_model", EMBEDDING_MODEL);
+  field("response_model", embedded.model);
+  field("dimensions", embedded.vectors[0]?.length ?? 0);
+  field("embedding_tokens", embedded.tokens);
+  field("embedding_ms", Date.now() - started);
+
+  field("pair", "データはいつ削除される？ / 退会後のデータ削除");
+  field(
+    "cosine_similarity",
+    decimal(cosineSimilarity(embedded.vectors[2], embedded.vectors[0])),
+  );
+
+  field("pair", "データはいつ削除される？ / 請求日");
+  field(
+    "cosine_similarity",
+    decimal(cosineSimilarity(embedded.vectors[2], embedded.vectors[1])),
+  );
+}
 ```
 
-実際の入力は次の内容です。
+処理は大きく3つです。
+
+1. マニュアルから比較する2つのチャンクを取得する
+2. 質問を加えた3つの文章をEmbeddingモデルでベクトル化する
+3. 質問と各マニュアルのコサイン類似度を計算する
+
+この実験では、ChromaやJev、回答生成LLMは使用しません。
+
+## ③ OpenRouterへリクエストする
+
+Embeddingモデルの呼び出しは、`app/src/openrouter.ts`の`embedTexts()`で行います。APIリクエスト部分の抜粋です。
+
+```typescript
+const payload = await postJson(
+  "https://openrouter.ai/api/v1/embeddings",
+  { model: EMBEDDING_MODEL, input },
+  bearer("OPENROUTER_API_KEY"),
+);
+```
+
+実際に送るリクエストボディは次の内容です。
 
 ```json
 {
@@ -46,66 +87,82 @@ const embedded = await embedTexts([
 }
 ```
 
-送信先はOpenRouterの `/api/v1/embeddings` です。指示文で回答を求めるAPIではなく、`input` の文章それぞれに対応するベクトルを受け取ります。
+レスポンスには、それぞれの文章に対応するベクトルが含まれます。実装では、返された`data[].index`を使って入力順に並べ直し、件数と次元数を検証しています。
 
-## STEP 2：返り値を、元の文章に対応させる
+| ベクトル | 対応する文章 |
+|---|---|
+| `vectors[0]` | 退会後のデータ削除 |
+| `vectors[1]` | 請求日 |
+| `vectors[2]` | 質問 |
 
-`app/src/openrouter.ts` の `embedTexts` は、応答の `data[].index` 順にベクトルを並べ直します。0番の本文には0番のベクトルを対応させ、入力と同じ件数か、すべて1536次元かも確かめます。
+各ベクトルには1536個の数値が入っています。重要なのは数値を個別に読むことではなく、**同じEmbeddingモデルで変換した文章同士を比較できること**です。
 
-| 配列位置 | 対応する文章 | 後で比較する相手 |
-|---|---|---|
-| `vectors[0]` | 削除の規定 | 質問 `vectors[2]` |
-| `vectors[1]` | 請求日の規定 | 質問 `vectors[2]` |
-| `vectors[2]` | 質問 | 上の二つの規定 |
+## ④ コサイン類似度を計算する
 
-本文とベクトルを取り違えると、検索順位だけ正しくても、取り出す本文が違ってしまいます。1536個の数値を紙面に並べる代わりに、この対応を押さえてください。
+文章同士の近さは、**コサイン類似度（Cosine Similarity）**で計算します。コサイン類似度は、2つのベクトルの向きがどれだけ近いかを表す指標で、値が大きいほど向きが近いことを意味します。
 
-## STEP 3：質問との近さを計算する
-
-ここでは **コサイン類似度** を使います。ベクトルの内積を、それぞれの長さの積で割る値です。
-
-```text
-cosine similarity = 内積(質問, 文書) / (質問の長さ × 文書の長さ)
-```
-
-この尺度では値が大きいほど向きが近くなります。実装で比べる箇所は次のとおりです。
+実装は`app/src/openrouter.ts`の`cosineSimilarity()`です。
 
 ```typescript
-cosineSimilarity(embedded.vectors[2], embedded.vectors[0]);
-cosineSimilarity(embedded.vectors[2], embedded.vectors[1]);
+export function cosineSimilarity(left: number[], right: number[]): number {
+  if (left.length !== right.length || left.length === 0) {
+    throw new Error("cosine inputs have different lengths");
+  }
+
+  let dot = 0;
+  let leftNorm = 0;
+  let rightNorm = 0;
+
+  for (let index = 0; index < left.length; index += 1) {
+    dot += left[index] * right[index];
+    leftNorm += left[index] * left[index];
+    rightNorm += right[index] * right[index];
+  }
+
+  return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
+}
 ```
 
-実行前に、どちらが近くなるか予想してから試します。[環境構築](./02-setup)後、次を実行します。DBへの保存はしません。
+この処理では、ベクトルの内積をそれぞれの長さの積で割っています。質問のベクトルと各マニュアルのベクトルを比較することで、どちらが意味的に近いかを調べます。
+
+## ⑤ 実行して結果を確認する
+
+次のコマンドを実行します。
 
 ```bash
 docker compose run --rm app embed
 ```
 
-![ベクトル化の実行ログ](https://static.zenn.studio/user-upload/6c0f3f7d2621-20261110.png)
+![Embeddingの実行結果](https://static.zenn.studio/user-upload/6c0f3f7d2621-20261110.png)
 
-保存ログの結果は次のとおりでした。
+保存した実行ログの結果は次のとおりです。
 
-| 質問と規定 | コサイン類似度 |
+| 比較対象 | コサイン類似度 |
 |---|---:|
-| 「データはいつ削除される？」と削除の規定 | 0.6082 |
-| 同じ質問と請求日の規定 | 0.2488 |
+| 質問 ↔ 退会後のデータ削除 | **0.6082** |
+| 質問 ↔ 請求日 | 0.2488 |
 
-削除の規定の方が近くなっています。応答のモデル名は `text-embedding-3-small`、各ベクトルは1536次元でした。
+「退会後のデータ削除」の方が、質問に近い結果となりました。つまり、質問と文書をベクトル化することで、文章同士の意味的な近さを数値で比較できました。
 
-## 0.6082を、正解する確率として読まない
+※ 数値は保存した実行ログの結果です。APIを再実行すると、処理時間などは変わる可能性があります。
 
-この値は「60.82%の確率で正しい回答になる」という意味ではありません。今回は二つの規定のうち、削除の規定が近かったという結果です。
+## 類似度が高ければ、正しい文書なのか？
 
-「プラン変更の日割り」と「解約した月の日割り」は、話題が近くても適用場面が違います。距離だけで根拠になるかを決めると、この違いを取り違えることがあります。
+ここで重要なのは、**コサイン類似度は、回答が正しい確率ではない**ということです。
 
-**同じモデル・同じ設定で意味の近さを比べ、根拠としての十分さは別に確かめる。** モデルを変更する場合は、質問だけを新しいモデルにせず、文書側も作り直します。同じ次元数でも、別のモデルの空間を混ぜてよいとは限りません。
+例えば、次の2つの規定を考えます。
 
-:::details 考えてみる：質問に「30日」を入れればよい？
-実際の利用者は答えの日数を知りません。正解を含む質問だけで検索を試すと、言い換えへの対応を十分に確かめられません。「いつ消える？」など、答えを知らない状態の問い合わせでも確認します。この言い換えでの追加実験は、上の表には含めていません。
-:::
+| 規定 | 内容 |
+|---|---|
+| プラン変更時の日割り | 月の途中でプランを変更すると日割りになる |
+| 退会後の請求 | 月の途中で解約しても日割りにはならない |
 
-:::details 計測条件と参考記事
-上の結果は `embed` の保存ログです。入力は合計70トークン、処理時間は1071ミリ秒でした。小数は第4位までです。図のための仮のベクトル値は使っていません。
+どちらも「日割り」に関係するため、意味的に近い文書として検索される可能性があります。しかし、「月途中の解約は日割りになる？」という質問に必要なのは、後者の規定です。
 
-[Embeddingについて学びたい](https://qiita.com/koji0705/items/32b9df2a2e25bad4cd2e)
-:::
+**意味が近いことと、回答の根拠として適切なことは別の問題**です。この違いは、後のReranking RAGで詳しく検証します。
+
+## まとめ
+
+Embeddingは、文章をベクトルに変換し、意味的な近さを計算できるようにする技術です。今回はOpenRouterへ3つの文章を送り、返されたベクトルからコサイン類似度を計算しました。ただし、類似度だけでは回答の正しさは保証できません。
+
+次章では、**生成したベクトルをChromaへ保存し、検索できる状態にします。**
