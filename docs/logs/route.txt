@@ -1,0 +1,242 @@
+question: 「日割り」とはどういう意味ですか？
+case: naive
+search_count: 1
+search_ms: 996
+embedding_tokens: 16
+rank: 1
+id: billing.md#日割り請求のルール
+heading: 日割り請求のルール
+category: 請求
+distance: 0.4715
+rank: 2
+id: billing.md#プラン変更時の日割り
+heading: プラン変更時の日割り
+category: 請求
+distance: 0.5233
+rank: 3
+id: withdrawal.md#退会後の請求
+heading: 退会後の請求
+category: 退会
+distance: 0.5759
+answer_label: naive
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 217
+answer_output_tokens: 57
+answer_ms: 1234
+answer:
+「日割り」とは、月の途中からの契約開始やプラン変更があった場合に、その開始日や変更日から月末までの期間を日数で計算して請求金額を算出する方法を指します。
+---
+case: route
+choice: none
+confidence: 0.6700
+probability_none: 0.7800
+probability_once: 0.2100
+probability_multi: 0.0100
+requested_jev_model: jev-latest
+response_jev_model: jev-1.14.0
+jev_input_tokens: 427
+jev_ms: 416
+search_count: 0
+answer_label: route
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 72
+answer_output_tokens: 63
+answer_ms: 1025
+answer:
+「日割り」とは、一定の料金や費用を1日ごとに分けて計算する方法のことを指します。例えば、1か月分の料金を日数で割って、利用した日数分だけ支払う場合に使われます。
+---
+question: 退会後、データはいつ削除されますか？
+case: naive
+search_count: 1
+search_ms: 674
+embedding_tokens: 17
+rank: 1
+id: withdrawal.md#退会後のデータ削除
+heading: 退会後のデータ削除
+category: 退会
+distance: 0.1920
+rank: 2
+id: withdrawal.md#退会前の書き出し
+heading: 退会前の書き出し
+category: 退会
+distance: 0.3842
+rank: 3
+id: withdrawal.md#解約の取り消し
+heading: 解約の取り消し
+category: 退会
+distance: 0.4360
+answer_label: naive
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 201
+answer_output_tokens: 17
+answer_ms: 796
+answer:
+退会完了から30日後にデータを削除します。
+---
+case: route
+choice: once
+confidence: 0.8600
+probability_none: 0.0100
+probability_once: 0.9100
+probability_multi: 0.0800
+requested_jev_model: jev-latest
+response_jev_model: jev-1.14.0
+jev_input_tokens: 428
+jev_ms: 162
+search_count: 1
+search_ms: 736
+embedding_tokens: 17
+rank: 1
+id: withdrawal.md#退会後のデータ削除
+heading: 退会後のデータ削除
+category: 退会
+distance: 0.1920
+rank: 2
+id: withdrawal.md#退会前の書き出し
+heading: 退会前の書き出し
+category: 退会
+distance: 0.3842
+rank: 3
+id: withdrawal.md#解約の取り消し
+heading: 解約の取り消し
+category: 退会
+distance: 0.4360
+answer_label: route
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 201
+answer_output_tokens: 17
+answer_ms: 909
+answer:
+退会完了から30日後にデータを削除します。
+---
+question: プラン変更後に退会した場合、請求とデータ削除はどうなりますか？
+case: naive
+search_count: 1
+search_ms: 644
+embedding_tokens: 32
+rank: 1
+id: withdrawal.md#退会後のデータ削除
+heading: 退会後のデータ削除
+category: 退会
+distance: 0.2902
+rank: 2
+id: withdrawal.md#退会後の請求
+heading: 退会後の請求
+category: 退会
+distance: 0.4085
+rank: 3
+id: withdrawal.md#退会前の書き出し
+heading: 退会前の書き出し
+category: 退会
+distance: 0.4089
+answer_label: naive
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 200
+answer_output_tokens: 246
+answer_ms: 2251
+answer:
+プラン変更後に退会した場合について、文書には直接の記述がありません。
+
+しかし、文書からわかることとしては、
+- 退会完了から30日後にデータが削除される。
+- 退会した月の料金は日割りでなく満額請求される。
+ということです。
+
+したがって、プラン変更後に退会しても、退会後の請求は解約した月の満額請求となり、退会完了から30日後にデータが削除されると推測されますが、プラン変更後に特別な取り扱いがあるかどうかは文書からは分かりません。
+
+【回答】
+文書にはプラン変更後に退会した場合の請求やデータ削除に関する特別な記述がないため、請求は解約した月の満額で日割りにはならず、退会完了から30日後にデータが削除されると推測されますが、確実なことは分かりません。
+---
+case: route
+choice: multi
+confidence: 0.5600
+probability_none: 0.0000
+probability_once: 0.2900
+probability_multi: 0.7100
+requested_jev_model: jev-latest
+response_jev_model: jev-1.14.0
+jev_input_tokens: 441
+jev_ms: 183
+search_ms: 656
+embedding_tokens: 32
+rank: 1
+id: withdrawal.md#退会後のデータ削除
+heading: 退会後のデータ削除
+category: 退会
+distance: 0.2902
+rank: 2
+id: withdrawal.md#退会後の請求
+heading: 退会後の請求
+category: 退会
+distance: 0.4085
+rank: 3
+id: withdrawal.md#退会前の書き出し
+heading: 退会前の書き出し
+category: 退会
+distance: 0.4089
+follow_choice: more
+follow_confidence: 0.1400
+probability_enough: 0.4300
+probability_more: 0.5700
+follow_jev_input_tokens: 539
+follow_jev_ms: 161
+rewritten_query: プラン変更後に退会した場合の請求とデータ削除に関する規定
+rewrite_input_tokens: 197
+rewrite_ms: 853
+additional_search_ms: 663
+additional_embedding_tokens: 30
+case: additional
+rank: 1
+id: withdrawal.md#退会後のデータ削除
+heading: 退会後のデータ削除
+category: 退会
+distance: 0.2954
+rank: 2
+id: withdrawal.md#退会後の請求
+heading: 退会後の請求
+category: 退会
+distance: 0.4116
+rank: 3
+id: withdrawal.md#退会前の書き出し
+heading: 退会前の書き出し
+category: 退会
+distance: 0.4183
+search_count: 2
+document_count: 3
+rank: 1
+id: withdrawal.md#退会後のデータ削除
+heading: 退会後のデータ削除
+category: 退会
+distance: 0.2902
+rank: 2
+id: withdrawal.md#退会後の請求
+heading: 退会後の請求
+category: 退会
+distance: 0.4085
+rank: 3
+id: withdrawal.md#退会前の書き出し
+heading: 退会前の書き出し
+category: 退会
+distance: 0.4089
+answer_label: route
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 200
+answer_output_tokens: 150
+answer_ms: 1480
+answer:
+プラン変更後に退会した場合の請求については、解約した月の料金は満額で、日割りにはならないと記載があります。
+
+データ削除については、退会完了から30日後にデータが削除されると記載されています。
+
+したがって、
+・請求は解約した月の料金が満額請求される（プラン変更後であってもその月の料金は満額となると推測されますが、文書に明確なプラン変更後の記載はありません）。
+・退会完了から30日後にデータが削除される。
+
+と回答できます。
+---
