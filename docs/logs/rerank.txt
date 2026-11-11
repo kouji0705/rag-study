@@ -1,0 +1,200 @@
+question: Standardプランを月の途中で解約したら、日割りになりますか？
+requested_model: openai/text-embedding-3-small
+response_model: text-embedding-3-small
+embedding_tokens: 26
+case: top10
+heading: プラン変更時の日割り
+distance: 0.2862
+score: 1.5900
+jev_usefulness: {"type":"score","score":1.59,"confidence":0.58,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.07,"1":0.28,"2":0.65,"3":0}}
+heading: Standardプランの月額
+distance: 0.3832
+score: 0.9300
+jev_usefulness: {"type":"score","score":0.93,"confidence":0.93,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.07,"1":0.93,"2":0,"3":0}}
+heading: 退会後の請求
+distance: 0.3869
+score: 2.9800
+jev_usefulness: {"type":"score","score":2.98,"confidence":0.99,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0,"1":0,"2":0.01,"3":0.99}}
+heading: Proプランの月額
+distance: 0.3954
+score: 0.9400
+jev_usefulness: {"type":"score","score":0.94,"confidence":0.93,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.07,"1":0.93,"2":0,"3":0}}
+heading: 日割り請求のルール
+distance: 0.4586
+score: 1.7900
+jev_usefulness: {"type":"score","score":1.79,"confidence":0.79,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.08,"1":0.05,"2":0.87,"3":0}}
+heading: 解約の取り消し
+distance: 0.5588
+score: 0.0900
+jev_usefulness: {"type":"score","score":0.09,"confidence":0.92,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.92,"1":0.08,"2":0,"3":0}}
+heading: 退会後のデータ削除
+distance: 0.5621
+score: 0.0700
+jev_usefulness: {"type":"score","score":0.07,"confidence":0.93,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.93,"1":0.07,"2":0,"3":0}}
+heading: 請求日
+distance: 0.5862
+score: 0.9700
+jev_usefulness: {"type":"score","score":0.97,"confidence":0.97,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.03,"1":0.97,"2":0,"3":0}}
+heading: プランの種類
+distance: 0.5882
+score: 0.3300
+jev_usefulness: {"type":"score","score":0.33,"confidence":0.68,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.68,"1":0.32,"2":0,"3":0}}
+heading: 退会の手続き
+distance: 0.5983
+score: 0.1000
+jev_usefulness: {"type":"score","score":0.1,"confidence":0.91,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.91,"1":0.09,"2":0,"3":0}}
+requested_jev_model: jev-latest
+response_jev_model: jev-1.14.0
+jev_input_tokens: 4611
+jev_ms: 2680
+case: naive-top1
+pass_count: 1
+passed_heading: プラン変更時の日割り
+answer_label: naive-top1
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 133
+answer_output_tokens: 4
+answer_ms: 786
+answer:
+分からない
+---
+case: rerank-top1
+pass_count: 1
+passed_heading: 退会後の請求
+passed_score: 2.9800
+answer_label: rerank-top1
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 107
+answer_output_tokens: 37
+answer_ms: 986
+answer:
+いいえ、Standardプランを月の途中で解約しても、料金は日割りにならず、解約した月の料金は満額です。
+---
+case: naive-top2
+pass_count: 2
+passed_heading: プラン変更時の日割り
+passed_heading: Standardプランの月額
+answer_label: naive-top2
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 173
+answer_output_tokens: 108
+answer_ms: 1343
+answer:
+文書によると、プラン変更時の日割りについて記載がありますが、「月の途中で上位プランへ変更した場合は日割りで計算する」「下位プランへの変更は翌月から新しい料金」とあります。解約についての日割り計算の記載はありません。
+
+したがって、Standardプランを月の途中で解約した場合に日割りになるかは文書からは判断できません。
+
+答え：分からない
+---
+case: rerank-top2
+pass_count: 2
+passed_heading: 退会後の請求
+passed_score: 2.9800
+passed_heading: 日割り請求のルール
+passed_score: 1.7900
+answer_label: rerank-top2
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 157
+answer_output_tokens: 37
+answer_ms: 926
+answer:
+Standardプランを月の途中で解約した場合、料金は日割りにはならず、解約した月の料金は満額請求されます。
+---
+case: naive-top3
+pass_count: 3
+passed_heading: プラン変更時の日割り
+passed_heading: Standardプランの月額
+passed_heading: 退会後の請求
+answer_label: naive-top3
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 214
+answer_output_tokens: 27
+answer_ms: 1172
+answer:
+Standardプランを月の途中で解約した場合、料金は満額で日割りにはなりません。
+---
+case: rerank-top3
+pass_count: 3
+passed_heading: 退会後の請求
+passed_score: 2.9800
+passed_heading: 日割り請求のルール
+passed_score: 1.7900
+passed_heading: プラン変更時の日割り
+passed_score: 1.5900
+answer_label: rerank-top3
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 224
+answer_output_tokens: 28
+answer_ms: 955
+answer:
+Standardプランを月の途中で解約した場合でも、料金は満額で日割りにはなりません。
+---
+target_in_top10: yes
+case: target-excluded
+heading: プラン変更時の日割り
+distance: 0.2862
+score: 1.6400
+jev_usefulness: {"type":"score","score":1.64,"confidence":0.63,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.05,"1":0.27,"2":0.68,"3":0}}
+heading: Standardプランの月額
+distance: 0.3832
+score: 0.9300
+jev_usefulness: {"type":"score","score":0.93,"confidence":0.93,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.07,"1":0.93,"2":0,"3":0}}
+heading: Proプランの月額
+distance: 0.3954
+score: 0.9500
+jev_usefulness: {"type":"score","score":0.95,"confidence":0.95,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.05,"1":0.95,"2":0,"3":0}}
+heading: 日割り請求のルール
+distance: 0.4586
+score: 1.7900
+jev_usefulness: {"type":"score","score":1.79,"confidence":0.79,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.08,"1":0.05,"2":0.87,"3":0}}
+heading: 解約の取り消し
+distance: 0.5588
+score: 0.0800
+jev_usefulness: {"type":"score","score":0.08,"confidence":0.93,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.93,"1":0.07,"2":0,"3":0}}
+heading: 退会後のデータ削除
+distance: 0.5621
+score: 0.0700
+jev_usefulness: {"type":"score","score":0.07,"confidence":0.94,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.94,"1":0.06,"2":0,"3":0}}
+heading: 請求日
+distance: 0.5862
+score: 0.9800
+jev_usefulness: {"type":"score","score":0.98,"confidence":0.98,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.02,"1":0.98,"2":0,"3":0}}
+heading: プランの種類
+distance: 0.5882
+score: 0.3900
+jev_usefulness: {"type":"score","score":0.39,"confidence":0.63,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.63,"1":0.37,"2":0,"3":0}}
+heading: 退会の手続き
+distance: 0.5983
+score: 0.1100
+jev_usefulness: {"type":"score","score":0.11,"confidence":0.89,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.89,"1":0.11,"2":0,"3":0}}
+heading: 退会できる人
+distance: 0.6026
+score: 0.0800
+jev_usefulness: {"type":"score","score":0.08,"confidence":0.93,"legend":{"0":"解約した月の料金には関係しない","1":"料金や請求には触れるが、日割りか満額かは判断できない","2":"日割りや満額には触れるが、解約時のルールとは限らない","3":"解約した月の料金が日割りか満額かを判断できる"},"probabilities":{"0":0.93,"1":0.07,"2":0,"3":0}}
+requested_jev_model: jev-latest
+response_jev_model: jev-1.14.0
+jev_input_tokens: 4609
+jev_ms: 1915
+case: rerank-excluded-top3
+pass_count: 3
+passed_heading: 日割り請求のルール
+passed_score: 1.7900
+passed_heading: プラン変更時の日割り
+passed_score: 1.6400
+passed_heading: 請求日
+passed_score: 0.9800
+answer_label: rerank-excluded-top3
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 210
+answer_output_tokens: 52
+answer_ms: 1146
+answer:
+文書には「月の途中で解約した場合の日割り」についての記載がありません。そのため、Standardプランを月の途中で解約した場合に日割りになるかどうかは分かりません。
+---
