@@ -17,6 +17,7 @@ import {
   runSplit,
   runVerify,
 } from "./commands.ts";
+import { runVerifyFixture } from "./verify-fixture.ts";
 
 async function main(): Promise<number> {
   const [command = "check", ...args] = process.argv.slice(2);
@@ -87,12 +88,16 @@ async function main(): Promise<number> {
     await runVerify();
     return 0;
   }
+  if (command === "verify-fixture") {
+    await runVerifyFixture();
+    return 0;
+  }
   if (command === "rerank") {
     await runRerank();
     return 0;
   }
   console.error(
-    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry, verify, descend, hop, hop-facts, relate, compare",
+    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry, verify, verify-fixture, descend, hop, hop-facts, relate, compare",
   );
   return 1;
 }

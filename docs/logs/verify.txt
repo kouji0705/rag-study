@@ -1,0 +1,101 @@
+question: 退会後のデータ保存期間を、有料で90日間に延長できますか？
+search_count: 1
+search_ms: 895
+embedding_tokens: 28
+rank: 1
+id: withdrawal.md#退会後のデータ削除
+heading: 退会後のデータ削除
+category: 退会
+distance: 0.3577
+rank: 2
+id: withdrawal.md#退会後の請求
+heading: 退会後の請求
+category: 退会
+distance: 0.4828
+rank: 3
+id: withdrawal.md#退会できる人
+heading: 退会できる人
+category: 退会
+distance: 0.5375
+answer_label: initial
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 189
+answer_output_tokens: 4
+answer_ms: 928
+answer:
+分からない
+---
+first_choice: not_supported
+first_confidence: 0.8300
+first_probability_supported: 0.0800
+first_probability_not_supported: 0.8900
+first_probability_contradicted: 0.0300
+first_requested_jev_model: jev-latest
+first_response_jev_model: jev-1.14.0
+first_jev_input_tokens: 590
+first_jev_ms: 217
+answer_label: revised
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 219
+answer_output_tokens: 10
+answer_ms: 892
+answer:
+マニュアルからは確認できません。
+---
+second_choice: supported
+second_confidence: 0.3000
+second_probability_supported: 0.5300
+second_probability_not_supported: 0.4200
+second_probability_contradicted: 0.0500
+second_requested_jev_model: jev-latest
+second_response_jev_model: jev-1.14.0
+second_jev_input_tokens: 601
+second_jev_ms: 178
+final_source: revised
+final_answer:
+マニュアルからは確認できません。
+---
+question: 退会後、データはいつ削除されますか？
+search_count: 1
+search_ms: 729
+embedding_tokens: 17
+rank: 1
+id: withdrawal.md#退会後のデータ削除
+heading: 退会後のデータ削除
+category: 退会
+distance: 0.1920
+rank: 2
+id: withdrawal.md#退会前の書き出し
+heading: 退会前の書き出し
+category: 退会
+distance: 0.3841
+rank: 3
+id: withdrawal.md#解約の取り消し
+heading: 解約の取り消し
+category: 退会
+distance: 0.4361
+answer_label: initial
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 201
+answer_output_tokens: 17
+answer_ms: 818
+answer:
+退会完了から30日後にデータを削除します。
+---
+first_choice: supported
+first_confidence: 1.0000
+first_probability_supported: 1.0000
+first_probability_not_supported: 0.0000
+first_probability_contradicted: 0.0000
+first_requested_jev_model: jev-latest
+first_response_jev_model: jev-1.14.0
+first_jev_input_tokens: 617
+first_jev_ms: 155
+revision: skipped
+final_source: initial
+final_answer:
+退会完了から30日後にデータを削除します。
+---
