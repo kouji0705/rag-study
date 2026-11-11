@@ -143,3 +143,48 @@ export const HOP_FACT_CRITERIA = {
 
 export const INCOMPLETE_INSTRUCTION =
   "渡された文書だけを根拠に答えてください。文書から確認できない項目は、確認できないと書いて、推測しないでください。";
+
+export const GENERIC_SCORE_INSTRUCTIONS =
+  "渡された質問に対して、この文書がどの程度の根拠になるか";
+
+export const GENERIC_SCORE_CRITERIA = [
+  "質問と関係がない",
+  "話題は近いが、回答の根拠にはならない",
+  "回答の一部を裏付ける",
+  "質問が求める情報を直接裏付ける",
+] as const;
+
+export const HIERARCHY_PARENT_INSTRUCTIONS =
+  "この質問に必要な規定が、この見出しの配下にありそうか";
+
+export const HIERARCHY_PARENT_CRITERIA = [
+  "この質問には関係しない",
+  "話題は近いが、必要な規定は配下になさそう",
+  "必要な規定の一部が配下にありそう",
+  "必要な規定が配下にありそう",
+] as const;
+
+export const Q09_COVERAGE_ITEMS = [
+  "プラン",
+  "請求額",
+  "日割りの有無",
+  "削除時期",
+] as const;
+
+export const INSUFFICIENT_EVIDENCE_ANSWER =
+  "確認に足る文書が残らなかったため、回答を作っていません。";
+
+export const HOP_B_CRITERIA = {
+  plan: HOP_CRITERIA.plan,
+  billing: HOP_CRITERIA.billing,
+  deletion: HOP_CRITERIA.deletion,
+  done: "使えるプラン、当月の請求額、解約月が日割りか満額か、データ削除までの日数が、渡された文書に揃っている",
+} as const;
+
+export const HOP_C_CRITERIA = {
+  plan: HOP_B_CRITERIA.plan,
+  billing: HOP_B_CRITERIA.billing,
+  deletion: HOP_B_CRITERIA.deletion,
+  done: HOP_B_CRITERIA.done,
+  price: "そのプランの月額が、まだ文書に無い",
+} as const;

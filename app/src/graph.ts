@@ -78,6 +78,7 @@ export function nodeNames(): string[] {
 export function walkRelations(
   starts: readonly string[],
   hops: number,
+  relations: readonly Relation[] = RELATIONS,
 ): Relation[] {
   const seenEdges = new Set<string>();
   const seenNodes = new Set(starts);
@@ -86,7 +87,7 @@ export function walkRelations(
   for (let step = 0; step < hops; step += 1) {
     const next: string[] = [];
     for (const node of frontier) {
-      for (const edge of RELATIONS) {
+      for (const edge of relations) {
         if (edge.from !== node && edge.to !== node) {
           continue;
         }

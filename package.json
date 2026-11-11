@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "preview": "zenn preview",
-    "lint": "biome check ."
+    "lint": "biome check .",
+    "check:book": "node scripts/check-book.mjs"
   },
   "repository": {
     "type": "git",
