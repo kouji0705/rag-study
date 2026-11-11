@@ -1,0 +1,60 @@
+question: 退会後、データはいつ削除されますか？
+label: naive
+requested_embedding_model: openai/text-embedding-3-small
+response_embedding_model: text-embedding-3-small
+embedding_tokens: 17
+embedding_ms: 2260
+rank: 1
+id: withdrawal.md#退会後のデータ削除
+heading: 退会後のデータ削除
+category: 退会
+distance: 0.1920
+rank: 2
+id: withdrawal.md#退会前の書き出し
+heading: 退会前の書き出し
+category: 退会
+distance: 0.3842
+rank: 3
+id: withdrawal.md#解約の取り消し
+heading: 解約の取り消し
+category: 退会
+distance: 0.4360
+answer_label: naive
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 201
+answer_output_tokens: 17
+answer_ms: 1374
+answer:
+退会完了から30日後にデータを削除します。
+---
+question: Standardプランを月の途中で解約したら、日割りになりますか？
+label: naive
+requested_embedding_model: openai/text-embedding-3-small
+response_embedding_model: text-embedding-3-small
+embedding_tokens: 26
+embedding_ms: 706
+rank: 1
+id: billing.md#プラン変更時の日割り
+heading: プラン変更時の日割り
+category: 請求
+distance: 0.2862
+rank: 2
+id: billing.md#Standardプランの月額
+heading: Standardプランの月額
+category: 請求
+distance: 0.3832
+rank: 3
+id: withdrawal.md#退会後の請求
+heading: 退会後の請求
+category: 退会
+distance: 0.3869
+answer_label: naive
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 214
+answer_output_tokens: 28
+answer_ms: 1241
+answer:
+Standardプランを月の途中で解約した場合、料金は満額で、日割りにはなりません。
+---
