@@ -1,7 +1,3 @@
----
-title: "第12章 回答の根拠を検証する — Self-RAGの考え方を応用する"
----
-
 ## Self-RAGとは？
 
 **Self-RAG（Self-Reflective Retrieval-Augmented Generation）とは、検索した文書や生成した回答を評価し、その結果を生成処理に反映するRAGです。** 通常のRAGでは検索結果をLLMへ渡して回答を生成しますが、Self-RAGでは検索の必要性や取得文書の関連性、回答が根拠に基づいているかなども判断します。
