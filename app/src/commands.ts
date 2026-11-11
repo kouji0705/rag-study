@@ -7,6 +7,7 @@ import {
   readDocument,
   upsertChunks,
 } from "./chroma.ts";
+import { addTokens, corpusDirectory } from "./corpus.ts";
 import {
   COMPARE_HOPS,
   COMPARE_STARTS,
@@ -17,6 +18,8 @@ import {
   walkRelations,
 } from "./graph.ts";
 import { placeChunks } from "./hierarchy.ts";
+import { keepByScore } from "./hierarchy-policy.ts";
+import { runHopLoop } from "./hop-policy.ts";
 import { decimal, field } from "./http.ts";
 import { chooseOption, scoreDocument } from "./jev.ts";
 import { type Chunk, loadChunks } from "./manual.ts";
@@ -33,15 +36,22 @@ import {
   EXTEND_SCORE_CRITERIA,
   EXTEND_SCORE_INSTRUCTIONS,
   GENERAL_INSTRUCTION,
+  GENERIC_SCORE_CRITERIA,
+  GENERIC_SCORE_INSTRUCTIONS,
   HIERARCHY_CRITERIA,
   HIERARCHY_INSTRUCTIONS,
   HIERARCHY_MIN_SCORE,
+  HIERARCHY_PARENT_CRITERIA,
+  HIERARCHY_PARENT_INSTRUCTIONS,
+  HOP_B_CRITERIA,
+  HOP_C_CRITERIA,
   HOP_CRITERIA,
   HOP_FACT_CRITERIA,
   HOP_FACT_INSTRUCTIONS,
   HOP_INSTRUCTIONS,
   HOP_REWRITE_INSTRUCTION,
   INCOMPLETE_INSTRUCTION,
+  INSUFFICIENT_EVIDENCE_ANSWER,
   JEV_MODEL,
   MAX_ADDITIONAL_SEARCHES,
   MAX_HOPS,
@@ -66,9 +76,11 @@ import {
   UNCONFIRMED_ANSWER,
 } from "./models.ts";
 import { completeAnswer, cosineSimilarity, embedTexts } from "./openrouter.ts";
+import { indexCorpus, openPinnedCollection } from "./pinned-index.ts";
+import type { RunOptions } from "./run-options.ts";
 
-export async function runSplit(): Promise<void> {
-  const chunks = await loadChunks();
+export async function runSplit(options: RunOptions = {}): Promise<void> {
+  const chunks = await loadManual(options);
   field("count", chunks.length);
   for (const chunk of chunks) {
     field("id", chunk.id);
@@ -80,8 +92,8 @@ export async function runSplit(): Promise<void> {
   }
 }
 
-export async function runEmbed(): Promise<void> {
-  const chunks = await loadChunks();
+export async function runEmbed(options: RunOptions = {}): Promise<void> {
+  const chunks = await loadManual(options);
   const deletion = requireChunk(chunks, "退会後のデータ削除");
   const billingDate = requireChunk(chunks, "請求日");
   const started = Date.now();
@@ -107,8 +119,11 @@ export async function runEmbed(): Promise<void> {
   );
 }
 
-export async function runIndex(): Promise<void> {
-  const chunks = await loadChunks();
+export async function runIndex(options: RunOptions = {}): Promise<number> {
+  if (options.corpus !== undefined) {
+    return indexCorpus(options.corpus);
+  }
+  const chunks = await loadManual(options);
   const started = Date.now();
   const embedded = await embedTexts(chunks.map((chunk) => chunk.body));
   field("requested_model", EMBEDDING_MODEL);
@@ -164,59 +179,96 @@ export async function runIndex(): Promise<void> {
     field("top_cosine_similarity", decimal(similarity));
     field("top_distance_plus_similarity", decimal(top.distance + similarity));
   }
+  if (count !== chunks.length || stored !== sample.body) {
+    return 1;
+  }
+  return 0;
 }
 
 export async function runSearch(
   question: string,
   limit: number,
   category?: string,
+  options: RunOptions = {},
 ): Promise<void> {
-  const collection = await getOrCreateCollection();
+  const collection = await openCollection(options);
   const count = await countRecords(collection.id);
   field("count", count);
   field("space", collection.space);
   await printQuery(collection.id, question, limit, category);
 }
 
-export async function runAnswer(question = ""): Promise<void> {
+export async function runAnswer(
+  question = "",
+  options: RunOptions = {},
+): Promise<void> {
   const questions =
     question.length > 0 ? [question] : [DELETE_QUESTION, PRORATION_QUESTION];
   for (const item of questions) {
-    await answerQuestion(item, 3, "naive");
+    await answerQuestion(item, 3, "naive", options);
   }
 }
 
-export async function runFilter(): Promise<void> {
+export async function runFilter(options: RunOptions = {}): Promise<void> {
   field("question", PRORATION_QUESTION);
   field("filter", "none");
-  await printQuery(await collectionId(), PRORATION_QUESTION, 5);
+  await printQuery(await collectionId(options), PRORATION_QUESTION, 5);
   field("filter", "退会");
-  await printQuery(await collectionId(), PRORATION_QUESTION, 5, "退会");
+  await printQuery(await collectionId(options), PRORATION_QUESTION, 5, "退会");
 }
 
-export async function runExclude(): Promise<void> {
+export async function runExclude(options: RunOptions = {}): Promise<void> {
+  if (options.question !== undefined) {
+    const mode = options.criteria ?? "specialized";
+    if (mode === "both" || mode === "generic") {
+      await excludeQuestion(
+        options.question,
+        GENERIC_SCORE_INSTRUCTIONS,
+        GENERIC_SCORE_CRITERIA,
+        options,
+        "generic",
+      );
+    }
+    if (mode === "both" || mode === "specialized") {
+      await excludeQuestion(
+        options.question,
+        RERANK_INSTRUCTIONS,
+        RERANK_CRITERIA,
+        options,
+        "specialized",
+      );
+    }
+    return;
+  }
   await excludeQuestion(
     DELETE_QUESTION,
     DELETE_SCORE_INSTRUCTIONS,
     DELETE_SCORE_CRITERIA,
+    options,
+    "specialized",
   );
   await excludeQuestion(
     EXTEND_QUESTION,
     EXTEND_SCORE_INSTRUCTIONS,
     EXTEND_SCORE_CRITERIA,
+    options,
+    "specialized",
   );
 }
 
-export async function runRoute(): Promise<void> {
+export async function runRoute(options: RunOptions = {}): Promise<void> {
   for (const question of [TERM_QUESTION, DELETE_QUESTION, PLAN_EXIT_QUESTION]) {
-    await compareRoute(question);
+    await compareRoute(question, options);
   }
 }
 
-async function compareRoute(question: string): Promise<void> {
+async function compareRoute(
+  question: string,
+  options: RunOptions,
+): Promise<void> {
   field("question", question);
   field("case", "naive");
-  const naive = await searchHits(question, 3);
+  const naive = await searchHits(question, 3, options);
   field("search_count", 1);
   field("search_ms", naive.ms);
   field("embedding_tokens", naive.tokens);
@@ -242,7 +294,7 @@ async function compareRoute(question: string): Promise<void> {
     return;
   }
   if (decision.choice === "once") {
-    const searched = await searchHits(question, 3);
+    const searched = await searchHits(question, 3, options);
     field("search_count", 1);
     field("search_ms", searched.ms);
     field("embedding_tokens", searched.tokens);
@@ -254,7 +306,7 @@ async function compareRoute(question: string): Promise<void> {
     throw new Error(`unknown strategy: ${decision.choice}`);
   }
 
-  const first = await searchHits(question, 3);
+  const first = await searchHits(question, 3, options);
   field("search_ms", first.ms);
   field("embedding_tokens", first.tokens);
   printHits(first.hits);
@@ -287,7 +339,7 @@ async function compareRoute(question: string): Promise<void> {
     field("rewritten_query", nextQuery);
     field("rewrite_input_tokens", rewritten.inputTokens);
     field("rewrite_ms", Date.now() - rewriteStarted);
-    const again = await searchHits(nextQuery, 3);
+    const again = await searchHits(nextQuery, 3, options);
     field("additional_search_ms", again.ms);
     field("additional_embedding_tokens", again.tokens);
     field("case", "additional");
@@ -301,18 +353,22 @@ async function compareRoute(question: string): Promise<void> {
   await printAnswer("route", question, documents);
 }
 
-export async function runRetry(): Promise<void> {
-  await compareRetry(PAYMENT_QUESTION, 3);
-  await compareRetry(PRORATION_QUESTION, 3);
-  await compareRetry(PRORATION_QUESTION, 2);
-  await compareRetry(EXTEND_QUESTION, 3);
+export async function runRetry(options: RunOptions = {}): Promise<void> {
+  await compareRetry(PAYMENT_QUESTION, 3, options);
+  await compareRetry(PRORATION_QUESTION, 3, options);
+  await compareRetry(PRORATION_QUESTION, 2, options);
+  await compareRetry(EXTEND_QUESTION, 3, options);
 }
 
-async function compareRetry(question: string, limit: number): Promise<void> {
+async function compareRetry(
+  question: string,
+  limit: number,
+  options: RunOptions,
+): Promise<void> {
   field("question", question);
   field("first_limit", limit);
   field("case", "naive");
-  const naive = await searchHits(question, limit);
+  const naive = await searchHits(question, limit, options);
   field("search_count", 1);
   field("search_ms", naive.ms);
   field("embedding_tokens", naive.tokens);
@@ -320,7 +376,7 @@ async function compareRetry(question: string, limit: number): Promise<void> {
   await printAnswer("naive", question, naive.hits);
 
   field("case", "retry");
-  const first = await searchHits(question, limit);
+  const first = await searchHits(question, limit, options);
   field("search_ms", first.ms);
   field("embedding_tokens", first.tokens);
   printHits(first.hits);
@@ -358,7 +414,7 @@ async function compareRetry(question: string, limit: number): Promise<void> {
   field("rewritten_query", nextQuery);
   field("rewrite_input_tokens", rewritten.inputTokens);
   field("rewrite_ms", Date.now() - rewriteStarted);
-  const again = await searchHits(nextQuery, 3);
+  const again = await searchHits(nextQuery, 3, options);
   field("additional_search_ms", again.ms);
   field("additional_embedding_tokens", again.tokens);
   field("case", "additional");
@@ -370,16 +426,19 @@ async function compareRetry(question: string, limit: number): Promise<void> {
   await printAnswer("retry", question, documents);
 }
 
-export async function runCompare(): Promise<void> {
+export async function runCompare(options: RunOptions = {}): Promise<void> {
   for (const question of [PRORATION_QUESTION, MULTI_QUESTION]) {
-    await compareQuestion(question);
+    await compareQuestion(question, options);
   }
 }
 
-async function compareQuestion(question: string): Promise<void> {
+async function compareQuestion(
+  question: string,
+  options: RunOptions,
+): Promise<void> {
   field("question", question);
   field("case", "vector");
-  const searched = await searchHits(question, 3);
+  const searched = await searchHits(question, 3, options);
   field("search_ms", searched.ms);
   field("embedding_tokens", searched.tokens);
   field("document_count", searched.hits.length);
@@ -421,7 +480,7 @@ async function compareQuestion(question: string): Promise<void> {
     field("to", edge.to);
     field("source_id", edge.sourceId);
   }
-  const chunks = await loadChunks();
+  const chunks = await loadManual(options);
   const sources: Chunk[] = [];
   for (const edge of edges) {
     const chunk = chunks.find((item) => item.id === edge.sourceId);
@@ -458,7 +517,7 @@ async function compareQuestion(question: string): Promise<void> {
   console.log("---");
 }
 
-export async function runRelate(): Promise<void> {
+export async function runRelate(options: RunOptions = {}): Promise<void> {
   field("question", GRAPH_DEMO_QUESTION);
   field("start", GRAPH_DEMO_START);
   field("start_source", "manual");
@@ -471,7 +530,7 @@ export async function runRelate(): Promise<void> {
     field("to", edge.to);
     field("source_id", edge.sourceId);
   }
-  const chunks = await loadChunks();
+  const chunks = await loadManual(options);
   const sources = edges.map((edge) => {
     const chunk = chunks.find((item) => item.id === edge.sourceId);
     if (chunk === undefined) {
@@ -508,23 +567,38 @@ export async function runRelate(): Promise<void> {
   console.log("---");
 }
 
-export async function runHop(): Promise<void> {
-  const collection = await getOrCreateCollection();
+export async function runHop(options: RunOptions = {}): Promise<void> {
+  const collection = await openCollection(options);
   field("collection_count", await countRecords(collection.id));
   field("space", collection.space);
-  await hopQuestion(MULTI_QUESTION, 3);
-  await hopQuestion(DELETE_QUESTION, 3);
-  await hopQuestion(MULTI_QUESTION, 1);
+  const criteria = hopCriteria(options);
+  const useProgress =
+    options.stop === "progress" ||
+    options.hopCriteria === "b" ||
+    options.hopCriteria === "c";
+  if (useProgress) {
+    await hopWithProgress(MULTI_QUESTION, 3, criteria, options);
+    await hopWithProgress(DELETE_QUESTION, 3, criteria, options);
+    await hopWithProgress(MULTI_QUESTION, 1, criteria, options);
+    return;
+  }
+  await hopQuestion(MULTI_QUESTION, 3, HOP_INSTRUCTIONS, criteria, options);
+  await hopQuestion(DELETE_QUESTION, 3, HOP_INSTRUCTIONS, criteria, options);
+  await hopQuestion(MULTI_QUESTION, 1, HOP_INSTRUCTIONS, criteria, options);
 }
 
-export async function runHopFacts(): Promise<void> {
-  const collection = await getOrCreateCollection();
+export async function runHopFacts(options: RunOptions = {}): Promise<void> {
+  const collection = await openCollection(options);
   field("collection_count", await countRecords(collection.id));
   field("space", collection.space);
   field("criteria_set", "four-facts");
-  await hopQuestion(MULTI_QUESTION, 3, HOP_FACT_INSTRUCTIONS, {
-    ...HOP_FACT_CRITERIA,
-  });
+  await hopQuestion(
+    MULTI_QUESTION,
+    3,
+    HOP_FACT_INSTRUCTIONS,
+    { ...HOP_FACT_CRITERIA },
+    options,
+  );
 }
 
 async function hopQuestion(
@@ -532,12 +606,13 @@ async function hopQuestion(
   limit: number,
   instructions: string = HOP_INSTRUCTIONS,
   criteria: Record<string, string> = { ...HOP_CRITERIA },
+  options: RunOptions = {},
 ): Promise<void> {
   field("question", question);
   field("first_limit", limit);
   field("instructions", instructions);
   field("case", "naive");
-  const naive = await searchHits(question, limit);
+  const naive = await searchHits(question, limit, options);
   field("search_count", 1);
   field("search_ms", naive.ms);
   field("embedding_tokens", naive.tokens);
@@ -545,7 +620,7 @@ async function hopQuestion(
   await printAnswer("naive", question, naive.hits);
 
   field("case", "hop");
-  const first = await searchHits(question, limit);
+  const first = await searchHits(question, limit, options);
   field("hop", 1);
   field("search_ms", first.ms);
   field("embedding_tokens", first.tokens);
@@ -592,7 +667,7 @@ async function hopQuestion(
     field(`hop${searches}_rewrite_input_tokens`, rewritten.inputTokens);
     field(`hop${searches}_rewrite_output_tokens`, rewritten.outputTokens);
     field(`hop${searches}_rewrite_ms`, Date.now() - rewriteStarted);
-    const again = await searchHits(nextQuery, 3);
+    const again = await searchHits(nextQuery, 3, options);
     field("additional_search_ms", again.ms);
     field("additional_embedding_tokens", again.tokens);
     field("case", "additional");
@@ -613,9 +688,9 @@ async function hopQuestion(
   );
 }
 
-export async function runDescend(): Promise<void> {
+export async function runDescend(options: RunOptions = {}): Promise<void> {
   for (const question of [DELETE_QUESTION, PRORATION_QUESTION]) {
-    await descendQuestion(question);
+    await descendQuestion(question, options);
   }
 }
 
@@ -625,10 +700,13 @@ type ScoredName = {
   score: number;
 };
 
-async function descendQuestion(question: string): Promise<void> {
+async function descendQuestion(
+  question: string,
+  options: RunOptions,
+): Promise<void> {
   field("question", question);
   field("case", "naive");
-  const naive = await searchHits(question, 3);
+  const naive = await searchHits(question, 3, options);
   field("search_count", 1);
   field("search_ms", naive.ms);
   field("embedding_tokens", naive.tokens);
@@ -636,15 +714,32 @@ async function descendQuestion(question: string): Promise<void> {
   await printAnswer("naive", question, naive.hits);
 
   field("case", "descend");
-  const placed = placeChunks(await loadChunks());
+  const placed = placeChunks(await loadManual(options));
   const categories = uniqueNames(
     placed.map((item) => ({
       name: item.category,
       state: categoryState(question, item.category, placed),
     })),
   );
-  const scoredCategories = await scoreLevel("category", categories);
-  const keptCategories = keepLevel("category", scoredCategories);
+  const upperInstructions =
+    options.levelInstructions === "parent"
+      ? HIERARCHY_PARENT_INSTRUCTIONS
+      : HIERARCHY_INSTRUCTIONS;
+  const upperCriteria =
+    options.levelInstructions === "parent"
+      ? HIERARCHY_PARENT_CRITERIA
+      : HIERARCHY_CRITERIA;
+  const scoredCategories = await scoreLevel(
+    "category",
+    categories,
+    upperInstructions,
+    upperCriteria,
+  );
+  const keptCategories = keepLevel(
+    "category",
+    scoredCategories,
+    options.fallback ?? "top1",
+  );
   const groups = uniqueNames(
     placed
       .filter((item) => keptCategories.has(item.category))
@@ -653,8 +748,17 @@ async function descendQuestion(question: string): Promise<void> {
         state: groupState(question, item.category, item.group, placed),
       })),
   );
-  const scoredGroups = await scoreLevel("group", groups);
-  const keptGroups = keepLevel("group", scoredGroups);
+  const scoredGroups = await scoreLevel(
+    "group",
+    groups,
+    upperInstructions,
+    upperCriteria,
+  );
+  const keptGroups = keepLevel(
+    "group",
+    scoredGroups,
+    options.fallback ?? "top1",
+  );
   const documents = placed.filter((item) =>
     keptGroups.has(`${item.category}/${item.group}`),
   );
@@ -744,18 +848,16 @@ function uniqueNames<T extends { name: string }>(items: T[]): T[] {
 async function scoreLevel<T extends { name: string; state: string }>(
   level: string,
   items: T[],
+  instructions: string = HIERARCHY_INSTRUCTIONS,
+  criteria: readonly string[] = HIERARCHY_CRITERIA,
 ): Promise<Array<T & ScoredName>> {
   const scored: Array<T & ScoredName> = [];
-  let tokens = 0;
+  let tokens: number | null = 0;
   let model = "";
   const started = Date.now();
   for (const item of items) {
-    const result = await scoreDocument(
-      item.state,
-      HIERARCHY_INSTRUCTIONS,
-      HIERARCHY_CRITERIA,
-    );
-    tokens += result.inputTokens;
+    const result = await scoreDocument(item.state, instructions, criteria);
+    tokens = addTokens(tokens, result.inputTokens);
     model = result.model;
     field("level", level);
     field("name", item.name);
@@ -769,9 +871,13 @@ async function scoreLevel<T extends { name: string; state: string }>(
   return scored;
 }
 
-function keepLevel(level: string, items: ScoredName[]): Set<string> {
+function keepLevel(
+  level: string,
+  items: ScoredName[],
+  fallbackMode: "top1" | "top2" = "top1",
+): Set<string> {
   const passed = items.filter((item) => item.score >= HIERARCHY_MIN_SCORE);
-  const kept = passed.length > 0 ? passed : [highest(items)];
+  const kept = keepByScore(items, HIERARCHY_MIN_SCORE, fallbackMode);
   const fallback = passed.length === 0;
   const max = Math.max(...items.map((item) => item.score));
   const tie = items.filter((item) => item.score === max).length > 1;
@@ -784,28 +890,18 @@ function keepLevel(level: string, items: ScoredName[]): Set<string> {
   return new Set(kept.map((item) => item.name));
 }
 
-function highest(items: ScoredName[]): ScoredName {
-  const top = items.reduce<ScoredName | undefined>((best, item) => {
-    if (best === undefined || item.score > best.score) {
-      return item;
-    }
-    return best;
-  }, undefined);
-  if (top === undefined) {
-    throw new Error("hierarchy level was empty");
-  }
-  return top;
-}
-
-export async function runVerify(): Promise<void> {
+export async function runVerify(options: RunOptions = {}): Promise<void> {
   for (const question of [EXTEND_QUESTION, DELETE_QUESTION]) {
-    await verifyQuestion(question);
+    await verifyQuestion(question, options);
   }
 }
 
-async function verifyQuestion(question: string): Promise<void> {
+async function verifyQuestion(
+  question: string,
+  options: RunOptions,
+): Promise<void> {
   field("question", question);
-  const searched = await searchHits(question, 3);
+  const searched = await searchHits(question, 3, options);
   field("search_count", 1);
   field("search_ms", searched.ms);
   field("embedding_tokens", searched.tokens);
@@ -911,19 +1007,54 @@ async function generateAnswer(
   return answer;
 }
 
-export async function runRerank(): Promise<void> {
-  const collection = await getOrCreateCollection();
-  const embedded = await embedTexts([PRORATION_QUESTION]);
-  field("question", PRORATION_QUESTION);
+export async function runRerank(options: RunOptions = {}): Promise<void> {
+  const question = options.question ?? PRORATION_QUESTION;
+  const collection = await openCollection(options);
+  const embedded = await embedTexts([question]);
+  field("question", question);
   field("requested_model", EMBEDDING_MODEL);
   field("response_model", embedded.model);
   field("embedding_tokens", embedded.tokens);
   const hits = await queryCollection(collection.id, embedded.vectors[0], 10);
   field("case", "top10");
-  const ranked = await rankByUsefulness(hits);
+  const mode = options.criteria ?? "specialized";
+  const stateFor =
+    options.question === undefined
+      ? (hit: Hit) => hit.document
+      : (hit: Hit) => `質問:\n${question}\n\n文書:\n${hit.document}`;
+  const rankedSets: { label: string; ranked: (Hit & { score: number })[] }[] =
+    [];
+  if (mode === "specialized" || mode === "both") {
+    rankedSets.push({
+      label: "specialized",
+      ranked: await rankByUsefulness(
+        hits,
+        RERANK_INSTRUCTIONS,
+        RERANK_CRITERIA,
+        stateFor,
+      ),
+    });
+  }
+  if (mode === "generic" || mode === "both") {
+    rankedSets.push({
+      label: "generic",
+      ranked: await rankByUsefulness(
+        hits,
+        GENERIC_SCORE_INSTRUCTIONS,
+        GENERIC_SCORE_CRITERIA,
+        stateFor,
+      ),
+    });
+  }
   for (const passCount of [1, 2, 3]) {
-    await answerSelection("naive", hits.slice(0, passCount));
-    await answerSelection("rerank", ranked.slice(0, passCount));
+    await answerSelection("naive", hits.slice(0, passCount), question);
+    for (const set of rankedSets) {
+      const label = mode === "specialized" ? "rerank" : `rerank-${set.label}`;
+      await answerSelection(label, set.ranked.slice(0, passCount), question);
+    }
+  }
+  if (options.question !== undefined) {
+    return;
   }
   const targetIncluded = hits.some((hit) => hit.heading === TARGET_HEADING);
   field("target_in_top10", targetIncluded ? "yes" : "no");
@@ -936,12 +1067,17 @@ export async function runRerank(): Promise<void> {
     .slice(0, 10);
   field("case", "target-excluded");
   const excludedRanked = await rankByUsefulness(excluded);
-  await answerSelection("rerank-excluded", excludedRanked.slice(0, 3));
+  await answerSelection(
+    "rerank-excluded",
+    excludedRanked.slice(0, 3),
+    question,
+  );
 }
 
 async function answerSelection(
   method: string,
   hits: { heading: string; document: string; score?: number }[],
+  question: string,
 ): Promise<void> {
   field("case", `${method}-top${hits.length}`);
   field("pass_count", hits.length);
@@ -951,15 +1087,16 @@ async function answerSelection(
       field("passed_score", decimal(hit.score));
     }
   }
-  await printAnswer(`${method}-top${hits.length}`, PRORATION_QUESTION, hits);
+  await printAnswer(`${method}-top${hits.length}`, question, hits);
 }
 
 async function answerQuestion(
   question: string,
   limit: number,
   label: string,
+  options: RunOptions = {},
 ): Promise<void> {
-  const collection = await getOrCreateCollection();
+  const collection = await openCollection(options);
   const embedStarted = Date.now();
   const embedded = await embedTexts([question]);
   field("question", question);
@@ -1028,8 +1165,11 @@ async function excludeQuestion(
   question: string,
   instructions: string,
   criteria: readonly string[],
+  options: RunOptions,
+  label: string,
 ): Promise<void> {
-  const collection = await getOrCreateCollection();
+  const collection = await openCollection(options);
+  field("criteria_set", label);
   const embedStarted = Date.now();
   const embedded = await embedTexts([question]);
   field("question", question);
@@ -1049,36 +1189,47 @@ async function excludeQuestion(
   }
   await printAnswer("naive", question, naiveHits);
   field("case", "exclude");
-  field("min_score", EXCLUDE_MIN_SCORE);
-  const ranked = await rankByUsefulness(hits, instructions, criteria);
-  const kept = ranked
-    .filter((hit) => hit.score >= EXCLUDE_MIN_SCORE)
-    .slice(0, 3);
-  field("kept", kept.length);
-  for (const hit of kept) {
-    field("kept_heading", hit.heading);
-    field("kept_score", decimal(hit.score));
+  const stateFor = (hit: Hit) =>
+    options.question === undefined
+      ? hit.document
+      : `質問:\n${question}\n\n文書:\n${hit.document}`;
+  const ranked = await rankByUsefulness(hits, instructions, criteria, stateFor);
+  const thresholds = options.thresholds ?? [EXCLUDE_MIN_SCORE];
+  for (const threshold of thresholds) {
+    field("min_score", threshold);
+    const kept = ranked.filter((hit) => hit.score >= threshold).slice(0, 3);
+    field("kept", kept.length);
+    for (const hit of kept) {
+      field("kept_heading", hit.heading);
+      field("kept_score", decimal(hit.score));
+    }
+    if (kept.length === 0) {
+      field("status", "insufficient_evidence");
+      field("cli_status", "skipped");
+      field("answer_label", "exclude");
+      field("answer", "skipped");
+      console.log("answer:");
+      console.log(INSUFFICIENT_EVIDENCE_ANSWER);
+      console.log("---");
+      continue;
+    }
+    await printAnswer("exclude", question, kept);
   }
-  if (kept.length === 0) {
-    field("answer_label", "exclude");
-    field("answer", "skipped");
-    return;
-  }
-  await printAnswer("exclude", question, kept);
 }
 
 async function rankByUsefulness(
   hits: Hit[],
   instructions: string = RERANK_INSTRUCTIONS,
   criteria: readonly string[] = RERANK_CRITERIA,
+  stateFor: (hit: Hit) => string = (hit) => hit.document,
 ): Promise<(Hit & { score: number })[]> {
   const started = Date.now();
-  let tokens = 0;
+  let tokens: number | null = 0;
   let model = "";
   const scored = [];
   for (const hit of hits) {
-    const result = await scoreDocument(hit.document, instructions, criteria);
-    tokens += result.inputTokens;
+    const result = await scoreDocument(stateFor(hit), instructions, criteria);
+    tokens = addTokens(tokens, result.inputTokens);
     model = result.model;
     scored.push({ ...hit, score: result.score });
     field("heading", hit.heading);
@@ -1093,11 +1244,25 @@ async function rankByUsefulness(
   return scored.sort((left, right) => right.score - left.score);
 }
 
+export async function loadRetrieved(
+  question: string,
+  options: RunOptions,
+  limit = 3,
+): Promise<{ id: string; heading: string; text: string }[]> {
+  const searched = await searchHits(question, limit, options);
+  return searched.hits.map((hit) => ({
+    id: hit.id,
+    heading: hit.heading,
+    text: hit.document,
+  }));
+}
+
 async function searchHits(
   question: string,
   limit: number,
-): Promise<{ hits: Hit[]; tokens: number; ms: number }> {
-  const collection = await getOrCreateCollection();
+  options: RunOptions = {},
+): Promise<{ hits: Hit[]; tokens: number | null; ms: number }> {
+  const collection = await openCollection(options);
   const started = Date.now();
   const embedded = await embedTexts([question]);
   const vector = embedded.vectors[0];
@@ -1126,7 +1291,7 @@ function printProbabilities(
   }
 }
 
-function passageState(question: string, hits: Hit[]): string {
+function passageState(question: string, hits: readonly Hit[]): string {
   const passages = hits
     .map((hit) => `見出し: ${hit.heading}\n${hit.document}`)
     .join("\n\n");
@@ -1145,9 +1310,88 @@ function mergeHits(current: Hit[], extra: Hit[]): Hit[] {
   return merged;
 }
 
-async function collectionId(): Promise<string> {
-  const collection = await getOrCreateCollection();
+async function collectionId(options: RunOptions = {}): Promise<string> {
+  const collection = await openCollection(options);
   return collection.id;
+}
+
+async function openCollection(
+  options: RunOptions,
+): Promise<{ id: string; space: string }> {
+  if (options.corpus === undefined) {
+    return getOrCreateCollection();
+  }
+  const pinned = await openPinnedCollection(options.corpus);
+  return { id: pinned.id, space: pinned.space };
+}
+
+async function loadManual(options: RunOptions): Promise<Chunk[]> {
+  if (options.corpus === undefined) {
+    return loadChunks();
+  }
+  return loadChunks(corpusDirectory(options.corpus));
+}
+
+function hopCriteria(options: RunOptions): Record<string, string> {
+  if (options.hopCriteria === "b") {
+    return { ...HOP_B_CRITERIA };
+  }
+  if (options.hopCriteria === "c") {
+    return { ...HOP_C_CRITERIA };
+  }
+  if (options.hopCriteria === "facts") {
+    return { ...HOP_FACT_CRITERIA };
+  }
+  return { ...HOP_CRITERIA };
+}
+
+async function hopWithProgress(
+  question: string,
+  limit: number,
+  criteria: Record<string, string>,
+  options: RunOptions,
+): Promise<void> {
+  field("question", question);
+  field("first_limit", limit);
+  field("stop", "progress");
+  const first = await searchHits(question, limit, options);
+  field("search_count", 1);
+  printHits(first.hits);
+  let embedCalls = 0;
+  const result = await runHopLoop({
+    initialQuery: question,
+    initialDocuments: first.hits,
+    criteria,
+    maxSearches: MAX_HOPS,
+    choose: (documents) =>
+      chooseOption(
+        passageState(question, documents),
+        HOP_INSTRUCTIONS,
+        criteria,
+      ),
+    rewrite: async (documents, gap) => {
+      const rewritten = await completeAnswer(
+        `${passageState(question, documents)}\n\n不足:\n${gap}`,
+        HOP_REWRITE_INSTRUCTION,
+      );
+      return rewritten.text.split("\n")[0]?.trim() ?? "";
+    },
+    search: async (query) => {
+      const found = await searchHits(query, 3, options);
+      return found.hits;
+    },
+    embed: async () => {
+      embedCalls += 1;
+    },
+  });
+  field("stop_reason", result.stopReason);
+  if (result.cause !== undefined) {
+    field("stop_cause", result.cause);
+  }
+  field("search_count", result.searches);
+  field("accepted_queries", embedCalls);
+  field("document_count", result.documents.length);
+  printHits(result.documents);
 }
 
 function requireChunk(chunks: Chunk[], heading: string): Chunk {

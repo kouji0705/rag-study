@@ -14,8 +14,12 @@ services:
       CHROMA_HOST: chroma
       CHROMA_PORT: "8000"
       MANUAL_DIR: /manual
+      ARTIFACTS_DIR: /artifacts
     volumes:
       - ./manual:/manual:ro
+      - ./fixtures:/fixtures:ro
+      - ./eval:/eval:ro
+      - ./artifacts:/artifacts
       - ./app/src:/app/src:ro
     depends_on:
       - chroma

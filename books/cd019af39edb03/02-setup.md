@@ -60,6 +60,11 @@ docker info
 
 リポジトリを取得し、プロジェクトのルートディレクトリへ移動します。
 
+```bash
+git clone https://github.com/kouji0705/rag-study.git
+cd rag-study
+```
+
 本書の主なファイル構成は次のとおりです。
 
 ```text
@@ -79,6 +84,8 @@ rag-study/
 │       ├── jev.ts
 │       └── ...
 ├── manual/
+├── fixtures/manuals/taskflow-v18/
+├── eval/cases.json
 ├── compose.yaml
 └── .env.example
 ```
@@ -92,6 +99,8 @@ rag-study/
 | `app/src/openrouter.ts` | Embedding・LLMの呼び出し |
 | `app/src/jev.ts` | Jevへの評価リクエスト |
 | `compose.yaml` | コンテナの起動設定 |
+| `fixtures/manuals/taskflow-v18/` | 比較に使う18節の固定版 |
+| `eval/cases.json` | 評価用の質問。正解は検索や回答のプロンプトへ混ぜない |
 
 ### Dockerfileの内容
 
@@ -165,6 +174,8 @@ docker compose run --rm app
 | `chroma: failed` | Chromaへの接続に失敗 |
 
 なお、`set`はキーの存在確認です。APIキーが有効かどうかまでは検証していません。
+
+比較を取り直すときの資料は `taskflow-v18` です。資料hashは `eb0db3cbdb54d6d41943152789885eae94be450b4dcadb0f16985f9042a290bd` です。`split` はマニュアルだけで動き、Embeddingと回答にはOpenRouter、判断にはJevが要ります。`check` はキーの値を出さず、設定の有無とChromaへの接続だけを見ます。
 
 ### 接続先について
 

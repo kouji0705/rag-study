@@ -9,14 +9,14 @@ import {
 export type EmbeddingResult = {
   model: string;
   vectors: number[][];
-  tokens: number;
+  tokens: number | null;
 };
 
 export type AnswerResult = {
   model: string;
   text: string;
-  inputTokens: number;
-  outputTokens: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
 };
 
 export async function embedTexts(input: string[]): Promise<EmbeddingResult> {
@@ -122,9 +122,9 @@ export function cosineSimilarity(left: number[], right: number[]): number {
   return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
 }
 
-function usageTokens(usage: unknown, key: string): number {
+function usageTokens(usage: unknown, key: string): number | null {
   if (!isRecord(usage) || typeof usage[key] !== "number") {
-    return 0;
+    return null;
   }
   return usage[key];
 }

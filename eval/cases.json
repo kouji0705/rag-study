@@ -1,0 +1,131 @@
+{
+  "cases": [
+    {
+      "id": "Q01",
+      "question": "退会後、データはいつ削除されますか？",
+      "answerability": "manual",
+      "requiredItems": ["削除時期"],
+      "evidenceGroups": [["withdrawal.md#退会後のデータ削除"]],
+      "forbiddenClaims": ["90日"],
+      "split": "tune",
+      "gold": { "claims": ["退会完了から30日後"] }
+    },
+    {
+      "id": "Q02",
+      "question": "退会してから、いつ登録データが消えますか？",
+      "answerability": "manual",
+      "requiredItems": ["削除時期"],
+      "evidenceGroups": [["withdrawal.md#退会後のデータ削除"]],
+      "forbiddenClaims": ["90日"],
+      "split": "eval",
+      "gold": { "claims": ["退会完了から30日後"] }
+    },
+    {
+      "id": "Q03",
+      "question": "Standardプランを月の途中で解約したら、日割りになりますか？",
+      "answerability": "manual",
+      "requiredItems": ["解約月の料金"],
+      "evidenceGroups": [["withdrawal.md#退会後の請求"]],
+      "forbiddenClaims": ["半月分"],
+      "split": "tune",
+      "gold": { "claims": ["解約した月の料金は満額", "日割りにはなりません"] }
+    },
+    {
+      "id": "Q04",
+      "question": "Standardを15日に解約したら、最後の月は半月分ですか？",
+      "answerability": "manual",
+      "requiredItems": ["解約月の料金"],
+      "evidenceGroups": [["withdrawal.md#退会後の請求"]],
+      "forbiddenClaims": ["半月分です", "開始日から月末まで"],
+      "split": "eval",
+      "gold": { "claims": ["解約した月の料金は満額"] }
+    },
+    {
+      "id": "Q05",
+      "question": "Standardプランの月額はいくらですか？",
+      "answerability": "manual",
+      "requiredItems": ["月額"],
+      "evidenceGroups": [["billing.md#Standardプランの月額"]],
+      "forbiddenClaims": ["12000円"],
+      "split": "eval",
+      "gold": { "claims": ["980円"] }
+    },
+    {
+      "id": "Q06",
+      "question": "Proプランの月額はいくらですか？",
+      "answerability": "manual",
+      "requiredItems": ["月額", "税"],
+      "evidenceGroups": [["billing.md#Proプランの月額"]],
+      "forbiddenClaims": ["980円"],
+      "split": "eval",
+      "gold": { "claims": ["12000円（税別）"] }
+    },
+    {
+      "id": "Q07",
+      "question": "クレジットカードの決済に失敗したままだと、いつタスクを編集できなくなりますか？",
+      "answerability": "manual",
+      "requiredItems": ["編集できなくなる時点"],
+      "evidenceGroups": [["billing.md#支払いの失敗"]],
+      "forbiddenClaims": ["ちょうど14日目"],
+      "split": "eval",
+      "gold": { "claims": ["14日を過ぎると、タスクは読み取り専用"] }
+    },
+    {
+      "id": "Q08",
+      "question": "SSOが使えるプランの月額はいくらですか？",
+      "answerability": "manual",
+      "requiredItems": ["プラン", "月額"],
+      "evidenceGroups": [["billing.md#SSO"], ["billing.md#Proプランの月額"]],
+      "forbiddenClaims": ["980円"],
+      "split": "eval",
+      "gold": { "claims": ["Proプラン", "12000円（税別）"] }
+    },
+    {
+      "id": "Q09",
+      "question": "SSOが使えるプランを月の途中で退会した場合、当月の請求額とデータ削除までの日数は？",
+      "answerability": "manual",
+      "requiredItems": ["プラン", "請求額", "日割りの有無", "削除時期"],
+      "evidenceGroups": [
+        ["billing.md#SSO"],
+        ["billing.md#Proプランの月額"],
+        ["withdrawal.md#退会後の請求"],
+        ["withdrawal.md#退会後のデータ削除"]
+      ],
+      "forbiddenClaims": ["980円"],
+      "split": "eval",
+      "gold": {
+        "claims": ["Proプラン", "12000円（税別）", "満額", "退会完了から30日後"]
+      }
+    },
+    {
+      "id": "Q10",
+      "question": "退会後のデータ保存期間を、有料で90日間に延長できますか？",
+      "answerability": "unanswerable",
+      "requiredItems": ["延長の可否"],
+      "evidenceGroups": [],
+      "forbiddenClaims": ["延長できます", "延長できません"],
+      "split": "tune",
+      "gold": { "claims": [] }
+    },
+    {
+      "id": "Q11",
+      "question": "「日割り」とはどういう意味ですか？",
+      "answerability": "general",
+      "requiredItems": ["一般的な意味"],
+      "evidenceGroups": [],
+      "forbiddenClaims": ["980円", "12000円"],
+      "split": "tune",
+      "gold": { "claims": [] }
+    },
+    {
+      "id": "Q12",
+      "question": "TaskFlowで月途中に解約すると、日割りはどうなりますか？",
+      "answerability": "manual",
+      "requiredItems": ["解約月の料金"],
+      "evidenceGroups": [["withdrawal.md#退会後の請求"]],
+      "forbiddenClaims": [],
+      "split": "eval",
+      "gold": { "claims": ["解約した月の料金は満額"] }
+    }
+  ]
+}

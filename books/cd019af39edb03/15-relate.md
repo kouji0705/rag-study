@@ -4,10 +4,9 @@
 
 前章のMulti-hop RAGでは、Jevで不足情報を判断しながら検索を繰り返しました。今回はあらかじめ情報同士の関係を定義しておき、その関係をたどって必要な文書を集めます。
 
-※ Graph RAGにはさまざまな実装があります。本章は手動で定義したグラフを使った学習用の簡易実装であり、Microsoft GraphRAGのような自動的な知識抽出やコミュニティ要約は実装していませ!
+※ Graph RAGにはさまざまな実装があります。本章は手動で定義したグラフを使った学習用の簡易実装であり、Microsoft GraphRAGのような自動的な知識抽出やコミュニティ要約は含みません（[GraphRAG](https://microsoft.github.io/graphrag/)）。
 
-
-![Graph RAGとは](https://static.zenn.studio/user-upload/2ef6f9494d5f-20261111.png)ん。
+![Graph RAGとは](https://static.zenn.studio/user-upload/2ef6f9494d5f-20261111.png)
 
 
 
@@ -35,6 +34,8 @@ flowchart LR
 ```
 
 このように、情報同士の関係を利用して、複数の文書に分かれた規定を結び付けます。
+
+同じグラフで歩数だけを変えると、SSOから1歩ではSSOの出典までで、月額の出典には届きません。2歩で月額の出典に届きます。これは関係をたどった結果です。開始点は人間がSSOと指定しており、質問から自動で選んだ成功率ではありません。
 
 ## ② 処理の流れ
 
