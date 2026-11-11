@@ -6,6 +6,8 @@ Zenn 本『RAGを図で理解する — 検索したのに答えられないの�
 
 原稿は [`books/cd019af39edb03`](books/cd019af39edb03) にあります。
 
+https://zenn.dev/kouji0705/books/cd019af39edb03
+
 ## 必要なもの
 
 アプリの実行には、次を使います。
