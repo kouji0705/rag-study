@@ -37,6 +37,8 @@ import {
   HIERARCHY_INSTRUCTIONS,
   HIERARCHY_MIN_SCORE,
   HOP_CRITERIA,
+  HOP_FACT_CRITERIA,
+  HOP_FACT_INSTRUCTIONS,
   HOP_INSTRUCTIONS,
   HOP_REWRITE_INSTRUCTION,
   INCOMPLETE_INSTRUCTION,
@@ -513,9 +515,25 @@ export async function runHop(): Promise<void> {
   await hopQuestion(MULTI_QUESTION, 1);
 }
 
-async function hopQuestion(question: string, limit: number): Promise<void> {
+export async function runHopFacts(): Promise<void> {
+  const collection = await getOrCreateCollection();
+  field("collection_count", await countRecords(collection.id));
+  field("space", collection.space);
+  field("criteria_set", "four-facts");
+  await hopQuestion(MULTI_QUESTION, 3, HOP_FACT_INSTRUCTIONS, {
+    ...HOP_FACT_CRITERIA,
+  });
+}
+
+async function hopQuestion(
+  question: string,
+  limit: number,
+  instructions: string = HOP_INSTRUCTIONS,
+  criteria: Record<string, string> = { ...HOP_CRITERIA },
+): Promise<void> {
   field("question", question);
   field("first_limit", limit);
+  field("instructions", instructions);
   field("case", "naive");
   const naive = await searchHits(question, limit);
   field("search_count", 1);
@@ -537,13 +555,11 @@ async function hopQuestion(question: string, limit: number): Promise<void> {
     const started = Date.now();
     const decision = await chooseOption(
       passageState(question, documents),
-      HOP_INSTRUCTIONS,
-      {
-        ...HOP_CRITERIA,
-      },
+      instructions,
+      { ...criteria },
     );
     choice = decision.choice;
-    if (!(choice in HOP_CRITERIA)) {
+    if (!(choice in criteria)) {
       throw new Error(`unknown hop choice: ${choice}`);
     }
     field(`hop${searches}_choice`, choice);
@@ -556,7 +572,10 @@ async function hopQuestion(question: string, limit: number): Promise<void> {
     if (choice === "done" || searches >= MAX_HOPS) {
       break;
     }
-    const gap = HOP_CRITERIA[choice as keyof typeof HOP_CRITERIA];
+    const gap = criteria[choice];
+    if (gap === undefined) {
+      throw new Error(`unknown hop choice: ${choice}`);
+    }
     field(`hop${searches}_gap`, gap);
     const rewriteStarted = Date.now();
     const rewritten = await completeAnswer(
