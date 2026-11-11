@@ -1,0 +1,117 @@
+question: Standardプランを月の途中で解約したら、日割りになりますか？
+case: vector
+search_ms: 908
+embedding_tokens: 26
+document_count: 3
+rank: 1
+id: billing.md#プラン変更時の日割り
+heading: プラン変更時の日割り
+category: 請求
+distance: 0.2861
+rank: 2
+id: billing.md#Standardプランの月額
+heading: Standardプランの月額
+category: 請求
+distance: 0.3831
+rank: 3
+id: withdrawal.md#退会後の請求
+heading: 退会後の請求
+category: 退会
+distance: 0.3869
+answer_label: vector
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 214
+answer_output_tokens: 33
+answer_ms: 898
+answer:
+Standardプランを月の途中で解約した場合、解約した月の料金は満額で、日割りにはなりません。
+---
+case: graph
+node_embedding_tokens: 122
+node_embedding_ms: 1347
+start: 解約した月
+similarity: 0.6378
+start: 変更日から月末までの日割り
+similarity: 0.5588
+hops: 2
+relation_count: 2
+from: 解約した月
+relation: 料金
+to: 満額
+source_id: withdrawal.md#退会後の請求
+from: 上位プランへの変更
+relation: 計算
+to: 変更日から月末までの日割り
+source_id: billing.md#プラン変更時の日割り
+document_count: 2
+heading: 退会後の請求
+heading: プラン変更時の日割り
+answer_label: graph
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 210
+answer_output_tokens: 29
+answer_ms: 843
+answer:
+Standardプランを月の途中で解約した場合、料金は日割りにならず満額請求されます。
+---
+question: SSOが使えるプランを月の途中で退会した場合、当月の請求額とデータ削除までの日数は？
+case: vector
+search_ms: 675
+embedding_tokens: 44
+document_count: 3
+rank: 1
+id: withdrawal.md#退会後のデータ削除
+heading: 退会後のデータ削除
+category: 退会
+distance: 0.3957
+rank: 2
+id: withdrawal.md#退会後の請求
+heading: 退会後の請求
+category: 退会
+distance: 0.4094
+rank: 3
+id: billing.md#プラン変更時の日割り
+heading: プラン変更時の日割り
+category: 請求
+distance: 0.4584
+answer_label: vector
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 230
+answer_output_tokens: 49
+answer_ms: 1057
+answer:
+当月の請求額は、解約した月の料金は満額であり、日割りにはなりません。  
+データ削除は、退会完了から30日後に行われます。
+---
+case: graph
+node_embedding_tokens: 140
+node_embedding_ms: 1434
+start: 解約した月
+similarity: 0.5618
+start: 変更日から月末までの日割り
+similarity: 0.4655
+hops: 2
+relation_count: 2
+from: 解約した月
+relation: 料金
+to: 満額
+source_id: withdrawal.md#退会後の請求
+from: 上位プランへの変更
+relation: 計算
+to: 変更日から月末までの日割り
+source_id: billing.md#プラン変更時の日割り
+document_count: 2
+heading: 退会後の請求
+heading: プラン変更時の日割り
+answer_label: graph
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 224
+answer_output_tokens: 63
+answer_ms: 1108
+answer:
+SSOが使えるプランを月の途中で退会した場合、当月の請求額は満額請求されます（日割りにはならない）。また、データ削除までの日数については文書に記載がないため、分かりません。
+---
