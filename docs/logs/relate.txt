@@ -1,0 +1,24 @@
+question: SSOが使えるプランの月額はいくらですか？
+start: SSO
+start_source: manual
+hops: 2
+relation_count: 2
+from: SSO
+relation: 対応する
+to: Proプラン
+source_id: billing.md#SSO
+from: Proプラン
+relation: 月額
+to: 12000円（税別）
+source_id: billing.md#Proプランの月額
+document_count: 2
+heading: SSO
+heading: Proプランの月額
+requested_answer_model: openai/gpt-4.1-mini
+response_answer_model: openai/gpt-4.1-mini
+answer_input_tokens: 177
+answer_output_tokens: 22
+answer_ms: 981
+answer:
+SSOが使えるプランの月額は12,000円（税別）です。
+---
