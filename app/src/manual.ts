@@ -27,8 +27,7 @@ export function manualDir(): string {
   return fileURLToPath(new URL("../../manual", import.meta.url));
 }
 
-export async function loadChunks(): Promise<Chunk[]> {
-  const directory = manualDir();
+export async function loadChunks(directory = manualDir()): Promise<Chunk[]> {
   const files = (await readdir(directory))
     .filter((name) => name.endsWith(".md"))
     .sort();

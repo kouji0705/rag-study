@@ -14,11 +14,13 @@ type Collection = {
   space: string;
 };
 
-export async function getOrCreateCollection(): Promise<Collection> {
+export async function getOrCreateCollection(
+  name = COLLECTION_NAME,
+): Promise<Collection> {
   const payload = await postJson(
     chromaBase(),
     {
-      name: COLLECTION_NAME,
+      name,
       get_or_create: true,
       configuration: { hnsw: { space: "cosine" } },
     },
@@ -107,6 +109,56 @@ export async function queryCollection(
   return readHits(payload);
 }
 
+export async function findCollection(
+  name: string,
+): Promise<Collection | undefined> {
+  const response = await fetch(chromaBase());
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`${response.status} ${text.slice(0, 500)}`);
+  }
+  const payload = JSON.parse(text) as unknown;
+  const rows = collectionRows(payload);
+  const found = rows.find((row) => row.name === name);
+  if (found === undefined) {
+    return undefined;
+  }
+  return { id: found.id, space: found.space };
+}
+
+export async function listDocuments(
+  collectionId: string,
+): Promise<{ id: string; document: string }[]> {
+  const documents: { id: string; document: string }[] = [];
+  const seen = new Set<string>();
+  const limit = 100;
+  let offset = 0;
+  while (true) {
+    const payload = await postJson(
+      `${chromaBase()}/${collectionId}/get`,
+      { include: ["documents"], limit, offset },
+      {},
+    );
+    const page = readGetPage(payload);
+    if (page.length === 0) {
+      break;
+    }
+    let added = 0;
+    for (const item of page) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        documents.push(item);
+        added += 1;
+      }
+    }
+    if (added === 0 || page.length < limit) {
+      break;
+    }
+    offset += page.length;
+  }
+  return documents;
+}
+
 export function printHit(rank: number, hit: Hit): void {
   field("rank", rank);
   field("id", hit.id);
@@ -166,6 +218,41 @@ function firstRow(value: unknown): unknown[] {
     throw new Error("chroma response row missing");
   }
   return value[0];
+}
+
+function collectionRows(
+  payload: unknown,
+): { id: string; name: string; space: string }[] {
+  const rows = Array.isArray(payload)
+    ? payload
+    : isRecord(payload) && Array.isArray(payload.collections)
+      ? payload.collections
+      : [];
+  return rows.flatMap((row) => {
+    if (
+      !isRecord(row) ||
+      typeof row.id !== "string" ||
+      row.name === undefined
+    ) {
+      return [];
+    }
+    const name = typeof row.name === "string" ? row.name : "";
+    return [{ id: row.id, name, space: readSpace(row) }];
+  });
+}
+
+function readGetPage(payload: unknown): { id: string; document: string }[] {
+  if (!isRecord(payload) || !Array.isArray(payload.ids)) {
+    throw new Error("chroma get ids missing");
+  }
+  const documents = Array.isArray(payload.documents) ? payload.documents : [];
+  return payload.ids.flatMap((id, index) => {
+    const document = documents[index];
+    if (typeof id !== "string" || typeof document !== "string") {
+      return [];
+    }
+    return [{ id, document }];
+  });
 }
 
 function readStringList(payload: unknown, key: string): string[] {

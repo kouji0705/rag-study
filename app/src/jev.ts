@@ -6,7 +6,7 @@ export type ChoiceResult = {
   choice: string;
   probabilities: Record<string, number>;
   confidence: number;
-  inputTokens: number;
+  inputTokens: number | null;
 };
 
 export async function chooseOption(
@@ -50,11 +50,7 @@ export async function chooseOption(
   }
   const confidence =
     typeof answer.confidence === "number" ? answer.confidence : 0;
-  const usage = payload.usage;
-  const inputTokens =
-    isRecord(usage) && typeof usage.input_tokens === "number"
-      ? usage.input_tokens
-      : 0;
+  const inputTokens = readUsage(payload.usage);
   return {
     model: payload.model,
     choice: answer.choice,
@@ -67,7 +63,7 @@ export async function chooseOption(
 export type ScoreResult = {
   model: string;
   score: number;
-  inputTokens: number;
+  inputTokens: number | null;
   usefulness: Record<string, unknown>;
 };
 
@@ -102,11 +98,7 @@ export async function scoreDocument(
   if (!isRecord(answer) || typeof answer.score !== "number") {
     throw new Error("jev score missing");
   }
-  const usage = payload.usage;
-  const inputTokens =
-    isRecord(usage) && typeof usage.input_tokens === "number"
-      ? usage.input_tokens
-      : 0;
+  const inputTokens = readUsage(payload.usage);
   const usefulness: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(answer)) {
     if (key !== "state") {
@@ -119,4 +111,11 @@ export async function scoreDocument(
     inputTokens,
     usefulness,
   };
+}
+
+function readUsage(usage: unknown): number | null {
+  if (!isRecord(usage) || typeof usage.input_tokens !== "number") {
+    return null;
+  }
+  return usage.input_tokens;
 }

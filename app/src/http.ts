@@ -45,6 +45,6 @@ export function decimal(value: number): string {
   return value.toFixed(4);
 }
 
-export function field(name: string, value: string | number): void {
-  console.log(`${name}: ${value}`);
+export function field(name: string, value: string | number | null): void {
+  console.log(`${name}: ${value === null ? "unavailable" : value}`);
 }

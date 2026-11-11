@@ -1,3 +1,7 @@
+---
+title: "第9章 採点で候補を残す — Filtering"
+---
+
 ## Filtering RAGとは？
 
 **Filtering RAGとは、検索した文書を評価し、回答の根拠として不十分な文書を除外する方法です。** 前章のReranking RAGではJevのスコアで検索順位を並べ替えました。今回はさらにスコアの下限を設け、一定の基準を満たした文書だけをLLMへ渡します。
@@ -117,24 +121,22 @@ Jevへの採点リクエストは、前章と同じ`app/src/jev.ts`の`scoreDocu
 
 ## ④ スコアで文書を除外する
 
-Jevで採点した後、`app/src/commands.ts`の`excludeQuestion()`で採用する文書を決めます。
+Jevで採点した後、`app/src/commands.ts`の`excludeQuestion()`で採用する文書を決めます。質問を指定したときは `stateFor` が質問と文書をまとめます。閾値を複数渡したときは、同じ採点結果を選別し直します。
 
 ```typescript
-const ranked = await rankByUsefulness(hits, instructions, criteria);
+const ranked = await rankByUsefulness(hits, instructions, criteria, stateFor);
+const thresholds = options.thresholds ?? [EXCLUDE_MIN_SCORE];
 
-const kept = ranked
-  .filter((hit) => hit.score >= EXCLUDE_MIN_SCORE)
-  .slice(0, 3);
-
-field("kept", kept.length);
-
-if (kept.length === 0) {
-  field("answer_label", "exclude");
-  field("answer", "skipped");
-  return;
+for (const threshold of thresholds) {
+  const kept = ranked.filter((hit) => hit.score >= threshold).slice(0, 3);
+  if (kept.length === 0) {
+    field("status", "insufficient_evidence");
+    field("cli_status", "skipped");
+    field("answer", "skipped");
+    continue;
+  }
+  await printAnswer("exclude", question, kept);
 }
-
-await printAnswer("exclude", question, kept);
 ```
 
 `EXCLUDE_MIN_SCORE`は`app/src/models.ts`で`2`に設定しています。Jevがスコアを返し、TypeScriptが条件に従って文書を残すか判断します。
@@ -201,7 +203,9 @@ answer: skipped
 
 Naive RAGでは検索上位3件をLLMへ渡して「分からない」と回答しました。一方、Filtering RAGでは、採用文書が0件となったため、回答生成を呼び出しませんでした。
 
-ここで重要なのは、`skipped`はCLIの実行状態であり、利用者向けの回答ではないことです。実際のサービスに組み込む場合は、「マニュアルからは確認できません」などの応答を返す処理が別途必要です。
+ここで重要なのは、`skipped`はCLIの実行状態であり、回答モデルを呼んだ印ではないことです。いまのコードは、0件のとき `status: insufficient_evidence` も出し、利用者向けには「確認に足る文書が残らなかったため、回答を作っていません。」と出します。保存ログの `answer: skipped` は、その実行が回答生成を呼ばなかった印です。
+
+閾値を上げたら、複数の規定をつなぐ文書は残るでしょうか。閾値の比較は、同じ採点結果を選別し直します。閾値のたびに採点APIは呼びません。この章の保存ログは、閾値2の1回です。
 
 ## Filtering RAGの課題は？
 
