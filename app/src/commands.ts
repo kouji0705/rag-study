@@ -300,15 +300,17 @@ async function compareRoute(question: string): Promise<void> {
 }
 
 export async function runRetry(): Promise<void> {
-  for (const question of [PAYMENT_QUESTION, PRORATION_QUESTION]) {
-    await compareRetry(question);
-  }
+  await compareRetry(PAYMENT_QUESTION, 3);
+  await compareRetry(PRORATION_QUESTION, 3);
+  await compareRetry(PRORATION_QUESTION, 2);
+  await compareRetry(EXTEND_QUESTION, 3);
 }
 
-async function compareRetry(question: string): Promise<void> {
+async function compareRetry(question: string, limit: number): Promise<void> {
   field("question", question);
+  field("first_limit", limit);
   field("case", "naive");
-  const naive = await searchHits(question, 3);
+  const naive = await searchHits(question, limit);
   field("search_count", 1);
   field("search_ms", naive.ms);
   field("embedding_tokens", naive.tokens);
@@ -316,7 +318,7 @@ async function compareRetry(question: string): Promise<void> {
   await printAnswer("naive", question, naive.hits);
 
   field("case", "retry");
-  const first = await searchHits(question, 3);
+  const first = await searchHits(question, limit);
   field("search_ms", first.ms);
   field("embedding_tokens", first.tokens);
   printHits(first.hits);
