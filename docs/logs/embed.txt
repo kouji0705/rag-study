@@ -1,0 +1,9 @@
+requested_model: openai/text-embedding-3-small
+response_model: text-embedding-3-small
+dimensions: 1536
+embedding_tokens: 70
+embedding_ms: 1071
+pair: データはいつ削除される？ / 退会後のデータ削除
+cosine_similarity: 0.6082
+pair: データはいつ削除される？ / 請求日
+cosine_similarity: 0.2488
