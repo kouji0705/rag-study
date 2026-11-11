@@ -130,5 +130,16 @@ export const HOP_CRITERIA = {
 export const HOP_REWRITE_INSTRUCTION =
   "不足している項目を探す検索文を1つだけ書いてください。検索文以外は書かないでください。";
 
+export const HOP_FACT_INSTRUCTIONS =
+  "この質問に答えるために、次に足りない情報はどれか";
+
+export const HOP_FACT_CRITERIA = {
+  plan: "SSOが使えるプランの名前が、まだ文書に無い",
+  price: "そのプランの月額が、まだ文書に無い",
+  billing: "解約した月が日割りか満額かが、まだ文書に無い",
+  deletion: "データ削除までの日数が、まだ文書に無い",
+  done: "プラン名、月額、解約月の請求、削除までの日数の4つが文書にある",
+} as const;
+
 export const INCOMPLETE_INSTRUCTION =
   "渡された文書だけを根拠に答えてください。文書から確認できない項目は、確認できないと書いて、推測しないでください。";

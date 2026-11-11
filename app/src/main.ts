@@ -7,6 +7,7 @@ import {
   runExclude,
   runFilter,
   runHop,
+  runHopFacts,
   runIndex,
   runRelate,
   runRerank,
@@ -74,6 +75,10 @@ async function main(): Promise<number> {
     await runHop();
     return 0;
   }
+  if (command === "hop-facts") {
+    await runHopFacts();
+    return 0;
+  }
   if (command === "descend") {
     await runDescend();
     return 0;
@@ -87,7 +92,7 @@ async function main(): Promise<number> {
     return 0;
   }
   console.error(
-    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry, verify, descend, hop, relate, compare",
+    "commands: check, split, embed, index, search, answer, filter, rerank, exclude, route, retry, verify, descend, hop, hop-facts, relate, compare",
   );
   return 1;
 }
