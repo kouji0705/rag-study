@@ -1,0 +1,25 @@
+case: controlled_wrong_answer
+question: 退会後、データはいつ削除されますか？
+document: 退会
+退会後のデータ削除
+退会完了から30日後にデータを削除します。
+initial_source: fixed_fixture
+initial_answer: 退会完了から90日後にデータを削除します。
+requested_jev_model: jev-latest
+first_response_model: jev-1.14.0
+first_choice: contradicted
+first_confidence: 0.98
+first_probabilities: {"supported":0,"not_supported":0.01,"contradicted":0.99}
+first_input_tokens: 501
+requested_answer_model: openai/gpt-4.1-mini
+revised_response_model: openai/gpt-4.1-mini
+revised_answer: 退会完了から30日後にデータを削除します。
+revision_input_tokens: 146
+revision_output_tokens: 17
+second_response_model: jev-1.14.0
+second_choice: supported
+second_confidence: 1
+second_probabilities: {"supported":1,"not_supported":0,"contradicted":0}
+second_input_tokens: 501
+final_source: revised
+final_answer: 退会完了から30日後にデータを削除します。
